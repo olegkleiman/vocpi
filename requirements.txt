@@ -1,12 +1,14 @@
 annotated-doc==0.0.4
 annotated-types==0.7.0
 anyio==4.12.1
+asyncpg==0.30.0
 boto3==1.42.44
 botocore==1.42.44
 certifi==2026.1.4
 click==8.3.1
 dnspython==2.8.0
 fastapi==0.68.2
+greenlet==3.1.1
 h11==0.14.0
 httpcore==0.16.3
 httpx==0.23.3
@@ -16,6 +18,9 @@ jmespath==1.1.0
 motor==3.7.1
 packaging==26.0
 pluggy==1.6.0
+protobuf==6.33.5
+psycopg==3.3.2
+psycopg-binary==3.3.2
 psycopg2-binary==2.9.11
 py-ocpi==0.3.1
 pydantic==1.10.26
@@ -25,6 +30,7 @@ pymongo==4.16.0
 pytest==9.0.2
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
+redis==7.1.0
 rfc3986==1.5.0
 s3transfer==0.16.0
 six==1.17.0
@@ -35,3 +41,4 @@ typing-inspection==0.4.2
 typing_extensions==4.15.0
 urllib3==2.6.3
 uvicorn==0.40.0
+valkey-glide==2.2.6

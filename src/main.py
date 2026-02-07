@@ -6,6 +6,7 @@ from py_ocpi.modules.versions.enums import VersionNumber
 from py_ocpi.core.config import settings
 
 from .router import router
+from .valkey import _valkey_client
 
 # from .auth import ClientAuthenticator
 # from .crud import AppCrud
@@ -24,10 +25,14 @@ app = FastAPI(
     description="Implementation of OCPI (Open Charge Point Interface) for electric vehicle charging stations in Israel.",
 )
 
-app.include_router(prefix="/ocpi/2.2.1", router=router)
+prefix = f"/{settings.OCPI_PREFIX}/{VersionNumber.v_2_2_1.value}"
+app.include_router(router, prefix=prefix)
 
-# app.include_router(#prefix=settings.OCPI_PREFIX,
-#                    "/ocpi/2.2.1", 
-#                    router)
+@app.on_event("shutdown")
+async def shutdown_event():
+    global _valkey_client
+    if _valkey_client:
+        await _valkey_client.close()
+        _valkey_client = None
 
 
