@@ -10,6 +10,7 @@ import os
 from enum import Enum
 
 import sqlalchemy as sa
+from glide import GlideClient
 
 from ....valkey import get_valkey
 
@@ -62,11 +63,6 @@ class Token(Base):
 
     # sa.Column(sa.String, primary_key=True)
     uid: Mapped[sa.UUID] = sa.Column(primary_key=True) # mapped_column(primary_key=True)
-    # partner_id = sa.Column(
-    #     sa.UUID(as_uuid=True),
-    #     sa.ForeignKey("ocpi_partners.id"),
-    #     nullable=False
-    # )
     partner_id : Mapped[sa.UUID] = mapped_column(sa.ForeignKey("ocpi_partners.id"))
 
     type = sa.Column(sa.String(20), nullable=False)
@@ -84,6 +80,20 @@ class Token(Base):
     def __repr__(self):
         return f"Token(uid={self.uid}, type={self.type}, contract_id={self.contract_id}, issuer={self.issuer}, valid={self.valid}, whitelist={self.whitelist}, last_updated={self.last_updated})"
 
+class TokenAuthorization(Base):
+    __tablename__ = "ocpi_token_authorizations"
+
+    id: Mapped[sa.UUID] = sa.Column(primary_key=True, default=sa.text("gen_random_uuid()"))
+    token_uid: Mapped[sa.UUID] = sa.Column(sa.ForeignKey("ocpi_tokens.uid"), nullable=False)
+    location_id: Mapped[Optional[str]] = sa.Column(sa.String, nullable=True)
+    evse_uid: Mapped[Optional[str]] = sa.Column(sa.String, nullable=True)
+    connector_id: Mapped[Optional[str]] = sa.Column(sa.String, nullable=True)
+    result: Mapped[str] = sa.Column(sa.String(20), nullable=False)
+    requested_at: Mapped[datetime] = sa.Column(DateTime(timezone=True), nullable=False)
+
+    def __repr__(self):
+        return f"TokenAuthorization(id={self.id}, token_uid={self.token_uid}, location_id={self.location_id}, evse_uid={self.evse_uid}, connector_id={self.connector_id}, status={self.status}, requested_at={self.requested_at})"
+
 class TokenAuthorizeRequest(BaseModel):
     location_id: Optional[str] = None
     evse_uid: Optional[str] = None
@@ -92,6 +102,8 @@ class TokenAuthorizeRequest(BaseModel):
 class AuthorizationStatus(str, Enum):
     ALLOWED = "ALLOWED"
     BLOCKED = "BLOCKED"
+    REJECTED = "REJECTED"
+    FAILED = "FAILED"
 
 class TokenAuthorizeResponse(BaseModel):
     status: AuthorizationStatus
@@ -106,37 +118,59 @@ async def authorize_token(
     token_uid: str,
     request: TokenAuthorizeRequest,
     db: AsyncSession = Depends(get_db),
-    valkey = Depends(get_valkey)
+    valkey: GlideClient = Depends(get_valkey)
 ) -> TokenAuthorizeResponse:
 
-    cache_key = f"ocpi:token:{token_uid}"
-    if valkey:
-        cached = await valkey.get(cache_key)
-        if cached:
-            return TokenAuthorizeResponse(status=AuthorizationStatus.ALLOWED)
+    try:
+        requested_at = datetime.now(timezone.utc)
 
-    # fallback → DB
-    stmt = (
-        select(Token)
-        .join(Token.partner)
-        .where(
-            Token.uid == token_uid,
-            Partner.country_code == "IL",
+        cache_key = f"ocpi:token:{token_uid}"
+        if valkey:
+            cached = await valkey.get(cache_key)
+            if cached:
+                return TokenAuthorizeResponse(status=AuthorizationStatus.ALLOWED)
+
+        # fallback → DB
+        stmt = (
+            select(Token)
+            .join(Token.partner)
+            .where(
+                Token.uid == token_uid,
+                Partner.country_code == "IL",
+            )
+            .options(selectinload(Token.partner))
         )
-        .options(selectinload(Token.partner))
-    )
 
-    result = await db.execute(
-        stmt
-    )
-    token = result.scalar_one_or_none()
-    base_url = token.partner.base_url
+        result = await db.execute(
+            stmt
+        )
+        token = result.scalar_one_or_none()
+        base_url = token.partner.base_url
+        
+        status = AuthorizationStatus.BLOCKED 
+
+        if token:
+            status = AuthorizationStatus.ALLOWED
+            if valkey:
+                await valkey.set(cache_key, str(token.uid))
+                await valkey.expire(cache_key, 60)
+        
+        auth_record = TokenAuthorization(
+            token_uid=token.uid,
+            location_id=request.location_id,
+            evse_uid=request.evse_uid,
+            connector_id=request.connector_id,
+            result=status.value,
+            requested_at=requested_at
+        )
+        db.add(auth_record)
+        await db.commit()
+        
+        return TokenAuthorizeResponse(status=status)
     
-    if not token:
-        return TokenAuthorizeResponse(status=AuthorizationStatus.BLOCKED, info="Token not found")
-    
-    if valkey:
-        await valkey.set(cache_key, str(token.uid))
-        await valkey.expire(cache_key, 60)
-    
-    return TokenAuthorizeResponse(status=AuthorizationStatus.ALLOWED)
+    except Exception as e:
+        
+        return TokenAuthorizeResponse(status=AuthorizationStatus.FAILED)
+
+    finally:
+        await db.close()

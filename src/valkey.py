@@ -2,35 +2,37 @@ import os
 from glide import (
     NodeAddress,
     GlideClient,
-    GlideClusterClient,
     GlideClientConfiguration,
     GlideClusterClientConfiguration,
 )
 
-_valkey_client: GlideClusterClient | None = None
+_valkey_client: GlideClient | None = None
 
-async def get_valkey() -> GlideClusterClient | None:
+async def get_valkey() -> GlideClient | None:
     """
     FastAPI dependency - returns None if connection fails
     """
     global _valkey_client
 
     # "vocpicache-5lobxd.serverless.use1.cache.amazonaws.com",
-    VALKEY_HOST = os.getenv("VALKEY_HOST")
-    VALKEY_PORT = int(os.getenv("VALKEY_PORT", "6379"))
-    VALKEY_TLS = os.getenv("VALKEY_TLS", "false").lower() == "true"
+    host = os.getenv("VALKEY_HOST")
+    port = int(os.getenv("VALKEY_PORT", "6379"))
+    use_tls = os.getenv("VALKEY_TLS", "false").lower() == "true"
+    cluster = os.getenv("VALKEY_CLUSTER", "false").lower() == "true"
 
     if _valkey_client is None:
         try:
-            config = GlideClientConfiguration(
-                addresses = [NodeAddress(
-                    VALKEY_HOST, VALKEY_PORT,
-                )],
-                use_tls=VALKEY_TLS,
-            )
+        
+            if cluster:
+                config = GlideClusterClientConfiguration(addresses=[NodeAddress(host, port)], use_tls=use_tls)
+                from glide import GlideClusterClient
+                _valkey_client = await GlideClusterClient.create(config)
+            else:
+                config = GlideClientConfiguration(addresses=[NodeAddress(host, port)], use_tls=use_tls)
+                _valkey_client = await GlideClient.create(config)
 
-            # _valkey_client = await GlideClusterClient.create(config)
-            _valkey_client = await GlideClient.create(config)
+            return _valkey_client
+        
         except Exception as e:
             print(f"Valkey connection failed: {e}")
             return None
