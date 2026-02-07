@@ -1,0 +1,139 @@
+image: python:3.11
+
+pipelines:
+  default:
+    - step:
+        name: Install & Test
+        caches:
+          - pip
+        script:
+          - python --version
+          - pip install --upgrade pip
+          - pip install -r requirements.txt
+          - pytest -v tests/
+  tags:
+    v*:
+      - step:
+          name: Build and Push to ECR for Tag $BITBUCKET_TAG
+          services:
+            - docker
+          caches:
+            - pip
+          script:
+            - echo "Version $BITBUCKET_TAG Build and Push to ECR..."
+            - echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID"
+            - echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:0:4}****"
+
+            - python --version
+            - pip install --upgrade pip
+            - pip install -r requirements.txt
+            - pytest -v -s tests/
+            - pytest -v -s tests/
+
+            - docker build -t $IMAGE_NAME .
+            - docker tag $IMAGE_NAME $IMAGE_NAME:$$BITBUCKET_TAG #tag 'latest' as '$BITBUCKET_TAG' like 'v1.0.0'
+            - docker tag $IMAGE_NAME $IMAGE_NAME:${IMAGE_TAG} #tag 'latest' as commit hash
+
+            - pipe: atlassian/aws-ecr-push-image:2.6.0
+              variables:
+                AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
+                AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
+                AWS_DEFAULT_REGION: $AWS_DEFAULT_REGION
+                IMAGE_NAME: $IMAGE_NAME
+                TAGS: $BITBUCKET_TAG
+  branches:
+    develop:
+      - step:
+          name: Dev Build and Test
+          services:
+            - docker
+          deployment: development
+          caches:
+            - pip
+
+          script:
+            - echo "Dev Build..."
+            - python --version
+            - pip install --upgrade pip
+            - pip install -r requirements.txt
+            - pytest -v -s tests/
+
+            - export IMAGE_TAG=${BITBUCKET_COMMIT::7}
+
+            - docker build -t $IMAGE_NAME . #builds with 'latest' tag
+            - docker tag $IMAGE_NAME $IMAGE_NAME:dev #tag 'latest' as 'dev'
+            - docker tag $IMAGE_NAME $IMAGE_NAME:${IMAGE_TAG} #tag 'latest' as commit hash
+
+            - echo "Push to ECR..."
+            - pipe: atlassian/aws-ecr-push-image:2.6.0 # this pipe only pushes the image with the tags specified. Th eimages has to be tagged prior to using this pipe.
+              variables:
+                AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
+                AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
+                AWS_DEFAULT_REGION: $AWS_DEFAULT_REGION
+                IMAGE_NAME: $IMAGE_NAME
+                TAGS: ${IMAGE_TAG} dev # push all tags
+
+    main:
+      - step:
+          name: Production Build and Push to ECR...
+          services:
+            - docker
+          deployment: production
+          caches:
+            - pip
+          script:
+            - echo "Production Build and Push to ECR..."
+            - echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID"
+            - echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:0:4}****"
+
+            - docker build -t $IMAGE_NAME .
+            - docker tag $IMAGE_NAME $IMAGE_NAME:${IMAGE_TAG} #tag 'latest' as commit hash
+
+            - pipe: atlassian/aws-ecr-push-image:2.6.0
+              variables:
+                AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
+                AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
+                AWS_DEFAULT_REGION: $AWS_DEFAULT_REGION
+                IMAGE_NAME: $IMAGE_NAME
+                TAGS: ${IMAGE_TAG} latest # push all tags
+            # Login to ECR
+            # - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+
+            # Build Docker image
+            # - export IMAGE_TAG=${BITBUCKET_COMMIT::7}
+            # - docker build -t $IMAGE_NAME:$IMAGE_TAG .
+            # - docker tag $IMAGE_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$IMAGE_NAME:$IMAGE_TAG
+            # - docker tag $IMAGE_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$IMAGE_NAME:latest
+
+            #  # Push to ECR
+            # - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$IMAGE_NAME:$IMAGE_TAG
+            # - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$IMAGE_NAME:latest
+
+      - step:
+          name: Update Task Definition and Deploy
+          script:
+
+            - apt-get update && apt-get install -y awscli jq
+
+            # - export IMAGE_TAG=${BITBUCKET_COMMIT::7}
+            - export
+              IMAGE_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_NAME:$IMAGE_TAG
+
+            # Get current task definition
+            - aws ecs describe-task-definition --task-definition $TASK_FAMILY
+              --query 'taskDefinition' > task-def.json
+
+            # Update image in task definition
+            - cat task-def.json | jq --arg IMAGE "$IMAGE_URI"
+              '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn,
+              .revision, .status, .requiresAttributes, .compatibilities,
+              .registeredAt, .registeredBy)' > new-task-def.json
+
+            # Register new task definition
+            - aws ecs register-task-definition --cli-input-json
+              file://new-task-def.json
+
+            # Update service
+            - aws ecs update-service --cluster $ECS_CLUSTER_NAME --service
+              $ECS_SERVICE_NAME --task-definition $TASK_FAMILY
+              --force-new-deployment
