@@ -1,0 +1,1 @@
+select * from ocpi_sessions
