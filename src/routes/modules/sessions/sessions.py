@@ -14,8 +14,10 @@ import sqlalchemy as sa
 
 from ....database import get_db
 from ....models import Token, Partner, TokenAuthorization, OCPISession
+from ....cache import get_valkey, get_redis
 
 class SessionRequest(BaseModel):
+    id: str = str(uuid.uuid4())
     location_id: Optional[str] = None
     evse_uid: Optional[str] = None
     connector_id: Optional[str] = None
@@ -77,7 +79,8 @@ async def create_session(
 async def update_session(
     session_id: str,
     request: SessionUpdateRequest,
-    db: AsyncSession = Depends(get_db)) -> SessionResponse:
+    db: AsyncSession = Depends(get_db),
+    cache = Depends(get_redis)) -> SessionResponse:
 
     stmt = select(OCPISession).where(OCPISession.id == session_id)
     result = await db.execute(stmt)
@@ -92,6 +95,17 @@ async def update_session(
     session.last_updated = datetime.now(timezone.utc)
 
     await db.commit()
+
+    duration = datetime.now(timezone.utc) - session.start_date_time
+    session.last_updated = datetime.now(timezone.utc)
+    await cache.hset(f"ocpi:session:{session_id}", 
+               mapping={
+                   "status": session.status,
+                   "kwh": session.kwh,
+                   "delivered_kwh": session.delivered_kwh,
+                   "duration": str(duration),
+                   "last_updated": session.last_updated.isoformat()
+               })
 
     return SessionResponse(id=session.id, status=SessionStatus.ACTIVE)    
 

@@ -10,6 +10,24 @@ from glide import (
 )
 
 _valkey_client: GlideClient | None = None
+_redis_client: redis.Redis | None = None
+
+async def get_redis():
+
+    global _redis_client
+
+    host = os.getenv("VALKEY_HOST")
+    port = int(os.getenv("VALKEY_PORT", "6379"))
+    use_tls = os.getenv("VALKEY_TLS", "false").lower() == "true"
+    cluster = os.getenv("VALKEY_CLUSTER", "false").lower() == "true"
+
+    _redis_client = redis.Redis(
+        host=host,
+        port=port,
+        decode_responses=True
+    )
+
+    return _redis_client
 
 async def get_valkey() -> GlideClient | None:
     """
@@ -23,11 +41,6 @@ async def get_valkey() -> GlideClient | None:
     use_tls = os.getenv("VALKEY_TLS", "false").lower() == "true"
     cluster = os.getenv("VALKEY_CLUSTER", "false").lower() == "true"
 
-    r = redis.Redis(
-        host=host,
-        port=port,
-        decode_responses=True
-    )
 
     if _valkey_client is None:
         try:
