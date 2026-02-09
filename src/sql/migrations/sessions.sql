@@ -17,6 +17,7 @@ CREATE TABLE ocpi_sessions (
     partner_id UUID NOT NULL REFERENCES ocpi_partners(id)
 );
 
+CREATE INDEX IF NOT EXISTS idx_sessions_id ON ocpi_sessions(id);
 CREATE INDEX idx_sessions_token_uid ON ocpi_sessions(token_uid);
 CREATE INDEX idx_sessions_partner_id ON ocpi_sessions(partner_id);
 CREATE INDEX idx_sessions_status ON ocpi_sessions(status);

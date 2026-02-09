@@ -25,10 +25,23 @@ class SessionStatus(str, Enum):
     ACTIVE = "ACTIVE"
     ENDED = "ENDED"
 
+class SessionUpdateRequest(BaseModel):
+    kwh: float = 0.0
+    delivered_kwh: float = 0.0
+    current_cost: float = 0.0
+    status: SessionStatus = SessionStatus.ENDED
+
 class SessionResponse(BaseModel):
     id: str
     status: SessionStatus
 
+class SessionDetailsResponse(BaseModel):
+    id: str
+    status: SessionStatus
+    kwh: float = 0.0
+    delivered_kwh: float = 0.0
+    current_cost: float = 0.0    
+    duration: datetime
 
 @router.post("/sessions", tags=["sessions"],
              description="CPO notifies the eMSP that a Session has started.")
@@ -41,7 +54,7 @@ async def create_session(
     partner_id = os.getenv("DEFAULT_PARTNER_ID", "c3c3c6a6-5f1a-4f6d-bc8b-6b6f4b1e8d90")
     
     session = OCPISession(
-        id=str(uuid.uuid4()),
+        id=request.id,
         start_date_time=now,
         kwh=request.kwh,
         auth_id=request.location_id or "unknown",
@@ -58,4 +71,58 @@ async def create_session(
     await db.commit()
 
     return SessionResponse(id=session.id, status=SessionStatus.ACTIVE)
+
+@router.put("/sessions/{session_id}", tags=["sessions"],
+            description="CPO notifies the eMSP that a Session has updated.")
+async def update_session(
+    session_id: str,
+    request: SessionUpdateRequest,
+    db: AsyncSession = Depends(get_db)) -> SessionResponse:
+
+    stmt = select(OCPISession).where(OCPISession.id == session_id)
+    result = await db.execute(stmt)
+    session = result.scalar_one_or_none()
+
+    if not session:
+        return SessionResponse(id=session_id, status=SessionStatus.ENDED)
+
+    session.kwh = request.kwh
+    session.delivered_kwh = request.delivered_kwh
+    session.status = request.status.value
+    session.last_updated = datetime.now(timezone.utc)
+
+    await db.commit()
+
+    return SessionResponse(id=session.id, status=SessionStatus.ACTIVE)    
+
+
+@router.get("/sessions/{session_id}", tags=["sessions"],
+            description="Returns the details of the session.")
+async def get_session(
+    session_id: str,
+    db: AsyncSession = Depends(get_db)) -> SessionDetailsResponse:
+
+    stmt = select(OCPISession).where(OCPISession.id == session_id)
+    result = await db.execute(stmt)
+    session = result.scalar_one_or_none()
+
+    if not session:
+        return SessionDetailsResponse(
+            id=session_id, 
+            status=SessionStatus.ENDED,
+            kwh=0.0, 
+            delivered_kwh=0.0,
+            current_cost=0.0, 
+            duration=datetime.now(timezone.utc)
+        )
+
+    duration = session.last_updated - session.start_date_time
+    return SessionDetailsResponse(
+        id=session.id, 
+        status=SessionStatus(session.status),
+        kwh=session.kwh,
+        delivered_kwh=getattr(session, 'delivered_kwh', 0.0),
+        current_cost=getattr(session, 'current_cost', 0.0),
+        duration=session.start_date_time
+    )
     
