@@ -6,7 +6,7 @@ from py_ocpi.modules.versions.enums import VersionNumber
 from py_ocpi.core.config import settings
 
 from .router import router
-from .valkey import _valkey_client
+from .cache import _valkey_client
 
 # from .auth import ClientAuthenticator
 # from .crud import AppCrud

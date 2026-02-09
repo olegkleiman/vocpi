@@ -1,4 +1,7 @@
 import os
+import redis
+
+
 from glide import (
     NodeAddress,
     GlideClient,
@@ -19,6 +22,12 @@ async def get_valkey() -> GlideClient | None:
     port = int(os.getenv("VALKEY_PORT", "6379"))
     use_tls = os.getenv("VALKEY_TLS", "false").lower() == "true"
     cluster = os.getenv("VALKEY_CLUSTER", "false").lower() == "true"
+
+    r = redis.Redis(
+        host=host,
+        port=port,
+        decode_responses=True
+    )
 
     if _valkey_client is None:
         try:
