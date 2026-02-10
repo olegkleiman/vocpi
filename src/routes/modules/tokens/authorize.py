@@ -10,9 +10,10 @@ import httpx
 from enum import Enum
 import uuid
 
-from glide import GlideClient
+import redis
+# from glide import GlideClient
 
-from ....cache import get_valkey
+from ....cache import get_redis
 
 from ....database import get_db
 from ....models import Token, Partner, TokenAuthorization
@@ -42,17 +43,17 @@ async def authorize_token(
     token_uid: str,
     request: TokenAuthorizeRequest,
     db: AsyncSession = Depends(get_db),
-    valkey: GlideClient = Depends(get_valkey)
+    cache: redis.Redis = Depends(get_redis)
 ) -> TokenAuthorizeResponse:
 
     try:
         requested_at = datetime.now(timezone.utc)
 
-        cache_key = f"ocpi:token:{token_uid}"
-        if valkey:
-            cached = await valkey.get(cache_key)
-            if cached:
-                return TokenAuthorizeResponse(status=AuthorizationStatus.ALLOWED)
+        # cache_key = f"ocpi:token:{token_uid}"
+        # if cache:
+        #     cached = await cache.get(cache_key)
+        #     if cached:
+        #         return TokenAuthorizeResponse(status=AuthorizationStatus.ALLOWED)
 
         # fallback → DB
         stmt = (
@@ -76,30 +77,30 @@ async def authorize_token(
             base_url = token.partner.base_url
 
             status = AuthorizationStatus.ALLOWED
-            if valkey:
-                await valkey.set(cache_key, str(token.uid))
-                await valkey.expire(cache_key, 60)
+            # if cache:
+                # await cache.set(cache_key, str(token.uid))
+                # await cache.expire(cache_key, 60)
         
-                auth_record = TokenAuthorization(
-                    id=str(uuid.uuid4()),
-                    token_uid=token.uid,
-                    location_id=request.location_id,
-                    evse_uid=request.evse_uid,
-                    connector_id=request.connector_id,
-                    result=status.value,
-                    requested_at=requested_at
-                )
-                db.add(auth_record)
-                await db.commit()
-        
-                async with httpx.AsyncClient() as client:
-                    response = await client.post(f"{base_url}/ocpi/2.2.1/sessions", json={     
-                        "location_id": request.location_id,
-                        "evse_uid": request.evse_uid,
-                        "connector_id": request.connector_id,
-                        "kwh": 10.7
-                    })
-                    response.raise_for_status()
+            auth_record = TokenAuthorization(
+                id=str(uuid.uuid4()),
+                token_uid=token.uid,
+                location_id=request.location_id,
+                evse_uid=request.evse_uid,
+                connector_id=request.connector_id,
+                result=status.value,
+                requested_at=requested_at
+            )
+            db.add(auth_record)
+            await db.commit()
+    
+            async with httpx.AsyncClient() as client:
+                response = await client.post(f"{base_url}/ocpi/2.2.1/sessions", json={     
+                    "location_id": request.location_id,
+                    "evse_uid": request.evse_uid,
+                    "connector_id": request.connector_id,
+                    "kwh": 10.7
+                })
+                response.raise_for_status()
         else:
             status = AuthorizationStatus.NOT_FOUND
 
@@ -108,6 +109,3 @@ async def authorize_token(
     except Exception as e:
         print(f"Authorization error: {e}")
         return TokenAuthorizeResponse(status=AuthorizationStatus.FAILED)
-
-    finally:
-        await db.close()

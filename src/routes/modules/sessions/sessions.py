@@ -6,6 +6,7 @@ from enum import Enum
 from datetime import datetime, timezone
 import uuid
 import os
+import json
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import relationship, sessionmaker, DeclarativeBase, selectinload, Mapped, mapped_column
 from sqlalchemy import select, Table, MetaData, Column, String, DateTime, Boolean
@@ -14,7 +15,7 @@ import sqlalchemy as sa
 
 from ....database import get_db
 from ....models import Token, Partner, TokenAuthorization, OCPISession
-from ....cache import get_valkey, get_redis
+from ....cache import get_redis
 
 class SessionRequest(BaseModel):
     id: str = str(uuid.uuid4())
@@ -106,6 +107,17 @@ async def update_session(
                    "duration": str(duration),
                    "last_updated": session.last_updated.isoformat()
                })
+
+    event = {
+        "event": "SESSION_UPDATED",
+        "session_id": session_id,
+        "status": session.status,
+        "kwh": session.kwh,
+        "delivered_kwh": session.delivered_kwh,
+        "duration": str(duration),
+        "last_updated": session.last_updated.isoformat()
+    }           
+    await cache.publish("ocpi:session:updated", json.dumps(event))
 
     return SessionResponse(id=session.id, status=SessionStatus.ACTIVE)    
 
