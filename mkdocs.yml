@@ -1,0 +1,15 @@
+site_name: Verifone OCPI API Documentation
+site_description: Documentation for the Verifone OCPI API implementation.
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - toc.integrate
+nav:
+  - Home: index.md  # The link text and destination of the home page
+  - Setup:
+      - Installation: setup/installation.md
+      - Configuration: setup/configuration.md

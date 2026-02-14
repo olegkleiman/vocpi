@@ -1,5 +1,6 @@
 from enum import Enum
 from fastapi import FastAPI
+import uvicorn
 
 class VersionNumber(str, Enum):
     """
@@ -25,3 +26,11 @@ app = FastAPI(
 
 prefix = f"/{OCPI_PREFIX}/{VersionNumber.v_2_2_1.value}"
 app.include_router(router, prefix=prefix)
+
+if __name__ == "__main__":
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        workers=1
+    )

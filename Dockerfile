@@ -1,3 +1,11 @@
+# Stage 1: Documentation Builder
+FROM python:3.13-slim AS docs_builder
+WORKDIR /docs_gen
+COPY docs/ .
+# Run your doc generator (e.g., Sphinx or MkDocs)
+RUN pip install mkdocs && mkdocs build
+
+# Stage 2: Final Production Image
 FROM python:3.13-slim 
 
 WORKDIR /app
@@ -7,8 +15,14 @@ RUN apt-get update \
 	&& apt-get install -y --no-install-recommends gcc libpq-dev \
 	&& rm -rf /var/lib/apt/lists/*
 
+# 1. Copy ONLY the requirements first
 COPY requirements.txt . 
 
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
+	&& pip install --no-cache-dir -r requirements.txt \
+	&& rm -rf /root/.cache/pip
+
+# 2. Install dependencies (this layer is cached until requirements.txt changes)
 RUN pip install --no-cache-dir -r requirements.txt 
 
 COPY . . 

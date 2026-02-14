@@ -2,3 +2,7 @@
 src/__pychache__/
 *.pyc
 .DS_Store
+
+# MkDocs
+docs/
+site/
