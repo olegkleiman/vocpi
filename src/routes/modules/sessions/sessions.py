@@ -15,7 +15,6 @@ import sqlalchemy as sa
 
 from ....database import get_db
 from ....models import Token, Partner, TokenAuthorization, OCPISession
-from ....cache import get_redis
 
 class SessionRequest(BaseModel):
     id: str = str(uuid.uuid4())
@@ -80,8 +79,8 @@ async def create_session(
 async def update_session(
     session_id: str,
     request: SessionUpdateRequest,
-    db: AsyncSession = Depends(get_db),
-    cache = Depends(get_redis)) -> SessionResponse:
+    db: AsyncSession = Depends(get_db)
+    ) -> SessionResponse:
 
     stmt = select(OCPISession).where(OCPISession.id == session_id)
     result = await db.execute(stmt)

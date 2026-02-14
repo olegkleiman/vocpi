@@ -1,5 +1,5 @@
 from ....router import router
 
-@router.get("/cpo/2.1.1/locations", tags=["locations"])
-async def get_locations():
-    return {"locations": []}
+@router.get("/locations/{location_id}", tags=["locations"])
+async def get_locations(location_id: str):
+    return {"location_id": location_id}

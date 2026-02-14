@@ -3,17 +3,16 @@ from pydantic import BaseModel
 from typing import Optional
 from fastapi import Depends
 from datetime import datetime, timezone
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import relationship, sessionmaker, DeclarativeBase, Session, selectinload, Mapped, mapped_column
-from sqlalchemy import select, Table, MetaData, Column, String, DateTime, Boolean
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+from sqlalchemy import select
 import httpx
 from enum import Enum
 import uuid
+import logging
 
 import redis
 # from glide import GlideClient
-
-from ....cache import get_redis
 
 from ....database import get_db
 from ....models import Token, Partner, TokenAuthorization
@@ -42,8 +41,7 @@ class TokenAuthorizeResponse(BaseModel):
 async def authorize_token(
     token_uid: str,
     request: TokenAuthorizeRequest,
-    db: AsyncSession = Depends(get_db),
-    cache: redis.Redis = Depends(get_redis)
+    db: AsyncSession = Depends(get_db)
 ) -> TokenAuthorizeResponse:
 
     try:
@@ -107,5 +105,5 @@ async def authorize_token(
         return TokenAuthorizeResponse(status=status)
     
     except Exception as e:
-        print(f"Authorization error: {e}")
+        logging.error(f"Authorization error: {e}")
         return TokenAuthorizeResponse(status=AuthorizationStatus.FAILED)

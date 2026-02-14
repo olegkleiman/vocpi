@@ -1,7 +1,7 @@
 import os
 import asyncio
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.exc import DisconnectionError, OperationalError
 
 pg_password = os.getenv("PG_PASSWORD")
@@ -10,7 +10,7 @@ pg_username = os.getenv("PG_USERNAME")
 if not pg_password or not pg_username:
     raise ValueError("PG_PASSWORD and PG_USERNAME environment variables must be set")
 
-DATABASE_URL = f"postgresql+asyncpg://{pg_username}:{pg_password}@voicp-instance.c2niqycso7s9.us-east-1.rds.amazonaws.com:5432/postgres"
+DATABASE_URL = f"postgresql+psycopg://{pg_username}:{pg_password}@voicp-instance.c2niqycso7s9.us-east-1.rds.amazonaws.com:5432/postgres"
 
 engine = create_async_engine(
     DATABASE_URL,
@@ -19,15 +19,14 @@ engine = create_async_engine(
     pool_pre_ping=True,
     pool_recycle=300,
     connect_args={
-        "server_settings": {
-            "application_name": "vocpi_app",
-            "tcp_keepalives_idle": "60",
-            "tcp_keepalives_interval": "10",
-            "tcp_keepalives_count": "5"
-        }
+        "application_name": "vocpi_app",
+        "keepalives": 1,
+        "keepalives_idle": 60,
+        "keepalives_interval": 10,
+        "keepalives_count": 5,
     }
 )
-SessionLocal = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
+SessionLocal = async_sessionmaker(bind=engine, expire_on_commit=False)
 
 class Base(DeclarativeBase):
     pass
