@@ -1,9 +1,37 @@
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import String, DateTime, Boolean
+from sqlalchemy import String, Column, DateTime, Boolean, UUID
 from datetime import datetime
 from typing import Optional
+import uuid
 import sqlalchemy as sa
 from .database import Base
+
+class TerminalConfiguration(Base):
+    __tablename__ = "ocpi_terminals"
+        
+    # Primary key using UUID
+    id: Mapped[sa.UUID] = sa.Column(primary_key=True)
+
+    serial_number: Mapped[str] = mapped_column(String)
+    location_id = sa.Column(sa.UUID, sa.ForeignKey("ocpi_locations.id"), nullable=False)
+    evse_id = sa.Column(sa.UUID, sa.ForeignKey("ocpi_evse.id"), nullable=False)
+
+class OCPILocation(Base):
+    __tablename__ = "ocpi_locations"
+
+    id: Mapped[sa.UUID] = sa.Column(primary_key=True)
+    location_id: Mapped[str] = mapped_column(String, unique=True)
+    partner_id = sa.Column(sa.UUID, sa.ForeignKey("ocpi_partners.id"), nullable=False)
+    description: Mapped[str] = mapped_column(String)
+    address: Mapped[str] = mapped_column(String)
+
+class EVSE(Base):
+    __tablename__ = "ocpi_evses"
+
+    id: Mapped[sa.UUID] = sa.Column(primary_key=True)
+    evse_uid: Mapped[str] = mapped_column(String, unique=True)
+    location_id: Mapped[str] = mapped_column(String)
+    description: Mapped[str] = mapped_column(String)
 
 class Partner(Base):
     __tablename__ = "ocpi_partners"

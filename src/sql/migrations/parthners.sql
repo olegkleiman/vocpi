@@ -1,5 +1,5 @@
 CREATE TABLE ocpi_partners (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     country_code CHAR(2) NOT NULL,
     party_id CHAR(3) NOT NULL,
     role VARCHAR(10) NOT NULL, -- EMSP or CPO

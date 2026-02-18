@@ -1,1 +1,2 @@
-select * from ocpi_partners
+insert into ocpi_partners (id, country_code, party_id, role, base_url, token, version)
+values( gen_random_uuid(), 'IL', 'CDF', 'CPO', 'http://dev-api.wevo.energy/ocpi', '8f9e8b9f-eb94-4471-a029-20c089dd23b6', '2.1.1');
