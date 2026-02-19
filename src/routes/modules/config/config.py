@@ -10,7 +10,7 @@ from ....database import get_db
 
 logger = logging.getLogger(__name__)
 
-@router.get("/config/{sn}", tags=["configuration"])
+@router.get("/terminal/{sn}", tags=["configuration"])
 async def app_config(sn: str,
                      db: AsyncSession = Depends(get_db) ):
     logger.info(f"Config endpoint called for serial number: {sn}")
