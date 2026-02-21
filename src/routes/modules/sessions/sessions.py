@@ -1,12 +1,16 @@
 from ....router import router
 from pydantic import BaseModel
 from typing import Optional
-from fastapi import Depends
+from fastapi import Depends, Request, WebSocket, WebSocketDisconnect
+from fastapi.encoders import jsonable_encoder
+from sse_starlette.sse import EventSourceResponse
 from enum import Enum
 from datetime import datetime, timezone
 import uuid
 import os
 import json
+from collections import defaultdict
+import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import relationship, sessionmaker, DeclarativeBase, selectinload, Mapped, mapped_column
 from sqlalchemy import select, Table, MetaData, Column, String, DateTime, Boolean
@@ -14,7 +18,12 @@ from sqlalchemy import select, Table, MetaData, Column, String, DateTime, Boolea
 import sqlalchemy as sa
 
 from ....database import get_db
+# from ....cache import cache
 from ....models import Token, Partner, TokenAuthorization, OCPISession
+
+from ....pubsub import SessionPubSub
+
+pubsub = SessionPubSub()
 
 class SessionRequest(BaseModel):
     id: str = str(uuid.uuid4())
@@ -45,6 +54,32 @@ class SessionDetailsResponse(BaseModel):
     current_cost: float = 0.0    
     duration: datetime
 
+@router.get("/sessions/updates/{session_id}", tags=["sessions"],
+            description="SSE endpoint for real-time session updates.")
+async def session_updates(request: Request, session_id: str):
+
+    # 1. Join the "radio channel" for this session
+    queue = await pubsub.subscribe(session_id)
+
+    async def event_generator():
+
+        while True:
+
+            if await request.is_disconnected():
+                print(f"Client {session_id} disconnected")
+                await pubsub.unsubscribe(session_id, queue) 
+                break
+
+            # Every client is waiting on the SAME queue
+            session_data = await queue.get()
+            yield {
+                "event": "update", # SSE usually needs an event name
+                "id": str(uuid.uuid4()), # Unique ID for each event
+                "data" :json.dumps(jsonable_encoder(session_data)),
+            }
+
+    return EventSourceResponse(event_generator())
+
 @router.post("/sessions", tags=["sessions"],
              description="CPO notifies the eMSP that a Session has started.")
 async def create_session(
@@ -54,7 +89,7 @@ async def create_session(
     now = datetime.now(timezone.utc)
 
     partner_id = os.getenv("DEFAULT_PARTNER_ID", "c3c3c6a6-5f1a-4f6d-bc8b-6b6f4b1e8d90")
-    
+
     session = OCPISession(
         id=request.id,
         start_date_time=now,
@@ -68,9 +103,12 @@ async def create_session(
         status=SessionStatus.ACTIVE.value,
         last_updated=now,
         partner_id=partner_id
-    )
-    db.add(session)
-    await db.commit()
+        )
+    # Broadcast to anyone listening for this specific ID
+    await pubsub.publish(request.id, session)
+
+    # db.add(session)
+    # await db.commit()
 
     return SessionResponse(id=session.id, status=SessionStatus.ACTIVE)
 
@@ -93,6 +131,8 @@ async def update_session(
     session.delivered_kwh = request.delivered_kwh
     session.status = request.status.value
     session.last_updated = datetime.now(timezone.utc)
+       
+    queue.put_nowait(session)
 
     await db.commit()
 
