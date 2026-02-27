@@ -2,6 +2,7 @@
 src/__pychache__/
 *.pyc
 .DS_Store
+.env
 
 # MkDocs
 docs/

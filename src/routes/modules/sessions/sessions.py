@@ -37,6 +37,8 @@ class SessionStatus(str, Enum):
     ENDED = "ENDED"
 
 class SessionUpdateRequest(BaseModel):
+    id: Optional[str] = None
+    location_id: Optional[str] = None
     kwh: float = 0.0
     delivered_kwh: float = 0.0
     current_cost: float = 0.0
@@ -58,7 +60,6 @@ class SessionDetailsResponse(BaseModel):
             description="SSE endpoint for real-time session updates.")
 async def session_updates(request: Request, session_id: str):
 
-    # 1. Join the "radio channel" for this session
     queue = await pubsub.subscribe(session_id)
 
     async def event_generator():
@@ -120,43 +121,47 @@ async def update_session(
     db: AsyncSession = Depends(get_db)
     ) -> SessionResponse:
 
-    stmt = select(OCPISession).where(OCPISession.id == session_id)
-    result = await db.execute(stmt)
-    session = result.scalar_one_or_none()
+    # stmt = select(OCPISession).where(OCPISession.id == session_id)
+    # result = await db.execute(stmt)
+    # session = result.scalar_one_or_none()
 
-    if not session:
-        return SessionResponse(id=session_id, status=SessionStatus.ENDED)
+    # if not session:
+    #     return SessionResponse(id=session_id, status=SessionStatus.ENDED)
 
-    session.kwh = request.kwh
-    session.delivered_kwh = request.delivered_kwh
-    session.status = request.status.value
-    session.last_updated = datetime.now(timezone.utc)
+    session = OCPISession(
+        id=session_id,
+        kwh=request.kwh,
+        # current_cost=request.current_cost,
+        status = request.status.value,
+        last_updated = datetime.now(timezone.utc)       
+    )
        
-    queue.put_nowait(session)
+    # Broadcast to anyone listening for this specific ID
+    await pubsub.publish(request.id, session)
 
-    await db.commit()
+    # await db.commit()
 
-    duration = datetime.now(timezone.utc) - session.start_date_time
-    session.last_updated = datetime.now(timezone.utc)
-    await cache.hset(f"ocpi:session:{session_id}", 
-               mapping={
-                   "status": session.status,
-                   "kwh": session.kwh,
-                   "delivered_kwh": session.delivered_kwh,
-                   "duration": str(duration),
-                   "last_updated": session.last_updated.isoformat()
-               })
+    # duration = datetime.now(timezone.utc) - session.start_date_time
+    # session.last_updated = datetime.now(timezone.utc)
+    # await cache.hset(f"ocpi:session:{session_id}", 
+    #            mapping={
+    #                "status": session.status,
+    #                "kwh": session.kwh,
+    #                "delivered_kwh": session.delivered_kwh,
+    #                "duration": str(duration),
+    #                "last_updated": session.last_updated.isoformat()
+    #            })
 
-    event = {
-        "event": "SESSION_UPDATED",
-        "session_id": session_id,
-        "status": session.status,
-        "kwh": session.kwh,
-        "delivered_kwh": session.delivered_kwh,
-        "duration": str(duration),
-        "last_updated": session.last_updated.isoformat()
-    }           
-    await cache.publish("ocpi:session:updated", json.dumps(event))
+    # event = {
+    #     "event": "SESSION_UPDATED",
+    #     "session_id": session_id,
+    #     "status": session.status,
+    #     "kwh": session.kwh,
+    #     "delivered_kwh": session.delivered_kwh,
+    #     "duration": str(duration),
+    #     "last_updated": session.last_updated.isoformat()
+    # }           
+    # await cache.publish("ocpi:session:updated", json.dumps(event))
 
     return SessionResponse(id=session.id, status=SessionStatus.ACTIVE)    
 

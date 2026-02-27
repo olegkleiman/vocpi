@@ -3,14 +3,21 @@ import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.exc import DisconnectionError, OperationalError
+import urllib.parse
 
-pg_password = os.getenv("PG_PASSWORD")
-pg_username = os.getenv("PG_USERNAME")
+raw_password = os.getenv("PG_PASSWORD")
+safe_password = urllib.parse.quote_plus(raw_password)
+pg_password = safe_password
+
+pg_username = os.getenv("PG_USERNAME", "postgres")
+
+pg_host = os.getenv("PG_HOST")
+pg_port = os.getenv("PG_PORT", "5432")
+pg_db = os.getenv("PG_DB", "postgres")
 
 if not pg_password or not pg_username:
     raise ValueError("PG_PASSWORD and PG_USERNAME environment variables must be set")
-
-DATABASE_URL = f"postgresql+psycopg://{pg_username}:{pg_password}@voicp-instance.c2niqycso7s9.us-east-1.rds.amazonaws.com:5432/postgres"
+DATABASE_URL = f"postgresql+psycopg://{pg_username}:{pg_password}@{pg_host}:{pg_port}/{pg_db}"
 
 engine = create_async_engine(
     DATABASE_URL,
