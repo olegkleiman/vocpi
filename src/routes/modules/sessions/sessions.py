@@ -18,12 +18,9 @@ from sqlalchemy import select, Table, MetaData, Column, String, DateTime, Boolea
 import sqlalchemy as sa
 
 from ....database import get_db
-# from ....cache import cache
 from ....models import Token, Partner, TokenAuthorization, OCPISession
 
-from ....pubsub import SessionPubSub
-
-pubsub = SessionPubSub()
+from ....dependencies import get_pubsub
 
 class SessionRequest(BaseModel):
     id: str = str(uuid.uuid4())
@@ -58,7 +55,9 @@ class SessionDetailsResponse(BaseModel):
 
 @router.get("/sessions/updates/{session_id}", tags=["sessions"],
             description="SSE endpoint for real-time session updates.")
-async def session_updates(request: Request, session_id: str):
+async def session_updates(request: Request, 
+                          session_id: str, 
+                          pubsub = Depends(get_pubsub)):
 
     queue = await pubsub.subscribe(session_id)
 
@@ -67,7 +66,7 @@ async def session_updates(request: Request, session_id: str):
         while True:
 
             if await request.is_disconnected():
-                print(f"Client {session_id} disconnected")
+                print(f"Session {session_id} disconnected")
                 await pubsub.unsubscribe(session_id, queue) 
                 break
 
@@ -84,8 +83,10 @@ async def session_updates(request: Request, session_id: str):
 @router.post("/sessions", tags=["sessions"],
              description="CPO notifies the eMSP that a Session has started.")
 async def create_session(
-    request: SessionRequest,
-    db: AsyncSession = Depends(get_db)) -> SessionResponse:
+        request: SessionRequest,
+        db: AsyncSession = Depends(get_db),
+        pubsub = Depends(get_pubsub)
+    ) -> SessionResponse:
 
     now = datetime.now(timezone.utc)
 
@@ -116,9 +117,10 @@ async def create_session(
 @router.put("/sessions/{session_id}", tags=["sessions"],
             description="CPO notifies the eMSP that a Session has updated.")
 async def update_session(
-    session_id: str,
-    request: SessionUpdateRequest,
-    db: AsyncSession = Depends(get_db)
+        session_id: str,
+        request: SessionUpdateRequest,
+        db: AsyncSession = Depends(get_db),
+        pubsub = Depends(get_pubsub)
     ) -> SessionResponse:
 
     # stmt = select(OCPISession).where(OCPISession.id == session_id)

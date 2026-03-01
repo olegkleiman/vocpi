@@ -34,6 +34,9 @@ async def app_config(sn: str,
             return {
                 "location_id": config_object.location_id,
                 "evse_id": config_object.evse_id,
+                "terminal_id": config_object.terminal_id,
+                "user_name": config_object.user_name,
+                "user_password": config_object.user_password
             }
         raise HTTPException(status_code=404, detail="Configuration not found")
     except HTTPException:

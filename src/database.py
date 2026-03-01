@@ -4,6 +4,12 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.exc import DisconnectionError, OperationalError
 import urllib.parse
+from sqlalchemy import select
+from aiocache import cached
+from aiocache.serializers import PickleSerializer
+
+from .models import Partner, OCPILocation, EVSE
+from .exceptions import PartnerNotFoundError
 
 raw_password = os.getenv("PG_PASSWORD")
 safe_password = urllib.parse.quote_plus(raw_password)
@@ -35,8 +41,6 @@ engine = create_async_engine(
 )
 SessionLocal = async_sessionmaker(bind=engine, expire_on_commit=False)
 
-class Base(DeclarativeBase):
-    pass
 
 async def get_db():
     max_retries = 3
@@ -53,3 +57,34 @@ async def get_db():
             await asyncio.sleep(retry_delay * (2 ** attempt))
         except Exception as e:
             raise e
+
+
+@cached(ttl=600, key="{location_id}:{evse_id}", serializer=PickleSerializer())
+async def get_partner(db,
+                    location_id: str,
+                    evse_id: str) :
+            
+        # select * from ocpi_partners p
+        # JOIN ocpi_locations l 
+        # ON p.id = l.partner_id 
+        # JOIN ocpi_evses e
+        # ON l.id = e.location_id
+        # where l.location_id = 'xxx'
+        # and e.evse_id = 'yyy'
+
+        stmt = (
+            select(Partner)
+            .join(OCPILocation, Partner.id == OCPILocation.partner_id)
+            .join(EVSE, OCPILocation.id== EVSE.location_id)  
+            .where(OCPILocation.location_id == location_id,
+                   EVSE.evse_id == evse_id)
+        )
+
+        result = await db.execute(stmt)
+        partner_row = result.first()
+
+        if not partner_row:
+            raise PartnerNotFoundError(f"Partner not found for location {location_id}, evse {evse_id}")
+
+        partner_object = partner_row[0]
+        return partner_object.base_url, partner_object.token, partner_object.version

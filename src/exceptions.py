@@ -1,0 +1,2 @@
+class PartnerNotFoundError(Exception):
+    pass

@@ -1,10 +1,12 @@
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, DeclarativeBase
 from sqlalchemy import String, Column, DateTime, Boolean, UUID
 from datetime import datetime
 from typing import Optional
 import uuid
 import sqlalchemy as sa
-from .database import Base
+
+class Base(DeclarativeBase):
+    pass
 
 class TerminalConfiguration(Base):
     __tablename__ = "ocpi_terminals"
@@ -15,6 +17,9 @@ class TerminalConfiguration(Base):
     serial_number: Mapped[str] = mapped_column(String)
     location_id = sa.Column(sa.UUID, sa.ForeignKey("ocpi_locations.id"), nullable=False)
     evse_id = sa.Column(sa.UUID, sa.ForeignKey("ocpi_evse.id"), nullable=False)
+    terminal_id = mapped_column(String)
+    user_name = mapped_column(String)
+    user_password = mapped_column(String)
 
 class OCPILocation(Base):
     __tablename__ = "ocpi_locations"
@@ -29,7 +34,7 @@ class EVSE(Base):
     __tablename__ = "ocpi_evses"
 
     id: Mapped[sa.UUID] = sa.Column(primary_key=True)
-    evse_uid: Mapped[str] = mapped_column(String, unique=True)
+    evse_id: Mapped[str] = mapped_column(String, unique=True)
     location_id: Mapped[str] = mapped_column(String)
     description: Mapped[str] = mapped_column(String)
 
@@ -41,7 +46,9 @@ class Partner(Base):
     party_id: Mapped[str] = mapped_column(String(3))
     role: Mapped[str] = mapped_column(String(10))
     base_url: Mapped[str] = mapped_column(String)
-    tokens: Mapped["Token"] = relationship(back_populates="partner")
+    token: Mapped[str] = mapped_column(String)
+    version: Mapped[str] = mapped_column(String)
+    
 
 class Token(Base):
     __tablename__ = "ocpi_tokens"
@@ -54,7 +61,7 @@ class Token(Base):
     valid = sa.Column(sa.Boolean, nullable=False)
     whitelist = sa.Column(sa.String(20), nullable=False)
     last_updated = Mapped[Optional[datetime]]
-    partner: Mapped[list["Partner"]] = relationship(back_populates="tokens")
+    # partner: Mapped[list["Partner"]] = relationship(back_populates="tokens")
 
 class TokenAuthorization(Base):
     __tablename__ = "ocpi_token_authorizations"
