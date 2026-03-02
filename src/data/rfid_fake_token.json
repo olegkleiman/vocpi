@@ -1,0 +1,11 @@
+{
+    "uid": "VER_TOKEN_RFID_001",
+    "type": "RFID",
+    "auth_id": "VER_TOKEN_RFID_001",
+    "visual_number": "VTR_001",
+    "issuer": "VER",
+    "valid": true,
+    "whitelist": "ALWAYS",
+    "last_updated": "2025-10-21T07:14:24Z",
+    "session_id": "gfuiyguirye"
+  }

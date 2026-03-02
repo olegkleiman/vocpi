@@ -11,7 +11,7 @@ import os
 import json
 from collections import defaultdict
 import asyncio
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import relationship, sessionmaker, DeclarativeBase, selectinload, Mapped, mapped_column
 from sqlalchemy import select, Table, MetaData, Column, String, DateTime, Boolean
 

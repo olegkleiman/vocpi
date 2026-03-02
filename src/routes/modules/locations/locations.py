@@ -31,8 +31,20 @@ async def fetch_location_data(db: AsyncSession, location_id: str, evse_id: str, 
     response.raise_for_status()
     return response.json()
 
+def has_location_changed(new_data: dict, old_data: dict) -> bool:
+    if old_data is None:
+        return True
+
+    # Make copies to compare, excluding the timestamp field.
+    current_comp = new_data.copy()
+    last_comp = old_data.copy()
+    # exclude 'timestamp' from comparison
+    current_comp.pop('timestamp', None)
+    last_comp.pop('timestamp', None)
+    return current_comp != last_comp
+
 @router.get("/locations/updates/{location_id}/{evse_id}", tags=["locations"],
-            description="SSE endpoint for real-time location/evse updates.")
+            description="SSE endpoint for real-time location/evse updates")
 async def location_updates(request: Request, 
                            location_id: str,
                            evse_id: str):
@@ -60,20 +72,7 @@ async def location_updates(request: Request,
                     async with SessionLocal() as session:
                         location_data = await fetch_location_data(session, location_id, evse_id, client)
 
-                    is_different = False
-                    if last_data is None:
-                        is_different = True
-                    else:
-                        # Make copies to compare, excluding the timestamp field.
-                        current_comp = location_data.copy()
-                        last_comp = last_data.copy()
-                        # exclude 'timestamp' from comparison
-                        current_comp.pop('timestamp', None)
-                        last_comp.pop('timestamp', None)
-                        if current_comp != last_comp:
-                            is_different = True
-
-                    if is_different:
+                    if has_location_changed(location_data, last_data):
                         last_data = location_data
                         yield {
                             "event": "update", # SSE usually needs an event name
@@ -81,7 +80,7 @@ async def location_updates(request: Request,
                             "data" :json.dumps(jsonable_encoder(location_data)),
                         }
                     else: 
-                        logger.debug(f"Pulled Location data is the same {location_id}:{evse_id} , skipping")
+                        logger.debug(f"Pulled location data is the same {location_id}:{evse_id} , skipping")
                         
                 except Exception as e:
                     logger.error(f"Error in SSE loop for {location_id}:{evse_id}: {e}")
