@@ -4,6 +4,9 @@ CREATE TABLE IF NOT EXISTS public.ocpi_terminals
     serial_number text COLLATE pg_catalog."default",
     location_id uuid,
     evse_id uuid,
+    terminal_id text COLLATE pg_catalog."default",
+    user_name text COLLATE pg_catalog."default",
+    user_password text COLLATE pg_catalog."default",
     description text COLLATE pg_catalog."default",
     CONSTRAINT ocpi_terminals_pkey PRIMARY KEY (id),
     CONSTRAINT fk_terminal_evse FOREIGN KEY (evse_id)
