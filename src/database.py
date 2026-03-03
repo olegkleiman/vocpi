@@ -8,7 +8,7 @@ from sqlalchemy import select
 from aiocache import cached
 from aiocache.serializers import PickleSerializer
 
-from .models import Partner, OCPILocation, EVSE
+from .models import OCPILocation, EVSE
 from .exceptions import PartnerNotFoundError
 
 raw_password = os.getenv("PG_PASSWORD")

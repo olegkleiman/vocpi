@@ -15,7 +15,7 @@ import redis
 # from glide import GlideClient
 
 from ....database import get_db
-from ....models import Token, Partner, TokenAuthorization
+from ....models import Token, TokenAuthorization
 
 class TokenAuthorizePayload(BaseModel):
     location_id: Optional[str] = None

@@ -5,13 +5,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import httpx
 from sqlalchemy import select
 import http.client
-import uuid
 import os
 
 from ....router import router
 from ....database import get_db, get_partner
 from .models import CommandResponseWrapper, StopSessionPayload
-from ....models import OCPISession
+from ....models import OCPISessionModel, OCPIPartnerModel
+
 CALLBACK_BASE_URL = os.getenv("CALLBACK_BASE_URL")
 
 @router.post("/commands/stop_session", tags=["commands"],
@@ -26,7 +26,21 @@ async def stop_session(
         if not CALLBACK_BASE_URL:
              raise HTTPException(status_code=500, detail="Configuration error: CALLBACK_BASE_URL not set")
 
-        partner_data = await get_partner(db, payload.session_id)
+        stmt = (
+            select(
+                OCPIPartnerModel.base_url, 
+                OCPIPartnerModel.token, 
+                OCPIPartnerModel.version
+            )
+            # Start from Sessions, join Partners
+            .select_from(OCPISessionModel) 
+            .join(OCPIPartnerModel, OCPISessionModel.party_id == OCPIPartnerModel.party_id)
+            .where(OCPISessionModel.session_id == payload.session_id)
+        )
+        result = await db.execute(stmt)
+        partner_data = result.first()
+
+        # partner_data = await get_partner(db, payload.session_id)
         partner_base_url, token, version = partner_data
 
         headers = {

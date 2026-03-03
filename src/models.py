@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Optional
 import uuid
 import sqlalchemy as sa
+from sqlalchemy.sql import func
 
 class Base(DeclarativeBase):
     pass
@@ -38,7 +39,7 @@ class EVSE(Base):
     location_id: Mapped[str] = mapped_column(String)
     description: Mapped[str] = mapped_column(String)
 
-class Partner(Base):
+class OCPIPartnerModel(Base):
     __tablename__ = "ocpi_partners"
     
     id: Mapped[sa.UUID] = sa.Column(primary_key=True)
@@ -74,19 +75,28 @@ class TokenAuthorization(Base):
     result: Mapped[str] = sa.Column(sa.String(20), nullable=False)
     requested_at: Mapped[datetime] = sa.Column(DateTime(timezone=True), nullable=False)
 
-class OCPISession(Base):    
+class OCPISessionModel(Base):    
     __tablename__ = "ocpi_sessions"
 
     id: Mapped[sa.UUID] = sa.Column(primary_key=True)
+    session_id: Mapped[str] = sa.Column(sa.String, nullable=False)
     auth_id: Mapped[str] = sa.Column(sa.String, nullable=False)
     auth_method: Mapped[str] = sa.Column(sa.String(20), nullable=False)
     status: Mapped[str] = sa.Column(sa.String(20), nullable=False)
-    kwh: Mapped[float] = sa.Column(sa.Float, nullable=False)
+    party_id: Mapped[str] = sa.Column(sa.String(3), nullable=False)
+
+    total_cost: Mapped[float] = sa.Column(sa.DECIMAL, nullable=False) # In OCPI prices can have more than 2 decimals
+    kWh: Mapped[float] = sa.Column(sa.Numeric(10, 3), nullable=False)
     location_id: Mapped[str] = sa.Column(sa.String, nullable=False)
     evse_uid: Mapped[str] = sa.Column(sa.String, nullable=False)
     connector_id: Mapped[str] = sa.Column(sa.String, nullable=False)
     currency: Mapped[str] = sa.Column(sa.String(3), nullable=False)
-    partner_id: Mapped[sa.UUID] = sa.Column(sa.ForeignKey("ocpi_partners.id"), nullable=False)
     start_date_time: Mapped[datetime] = sa.Column(DateTime(timezone=True), nullable=False)
     end_date_time: Mapped[Optional[datetime]] = sa.Column(DateTime(timezone=True), nullable=True)
-    last_updated: Mapped[datetime] = sa.Column(DateTime(timezone=True), nullable=False)    
+    last_updated: Mapped[datetime] = mapped_column(
+        "created_at",
+        DateTime(timezone=True),
+        server_default=func.now()
+        
+    )
+    # ) sa.Column(DateTime(timezone=True), nullable=False)    

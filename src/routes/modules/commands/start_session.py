@@ -7,7 +7,6 @@ import http.client
 import json
 import os
 import logging
-import uuid
 
 from ....router import router
 from ....database import get_db, get_partner

@@ -18,7 +18,7 @@ from sqlalchemy import select, Table, MetaData, Column, String, DateTime, Boolea
 import sqlalchemy as sa
 
 from ....database import get_db
-from ....models import Token, Partner, TokenAuthorization, OCPISession
+from ....models import Token, OCPIPartnerModel, TokenAuthorization, OCPISessionModel
 
 from ....dependencies import get_pubsub
 
@@ -27,7 +27,12 @@ class SessionRequest(BaseModel):
     location_id: Optional[str] = None
     evse_uid: Optional[str] = None
     connector_id: Optional[str] = None
-    kwh: float = 0.0
+    party_id: str
+    kWh: float = 0.0
+    total_cost: float = 0.0
+    authorization_reference: Optional[str] = None
+    currency: str = "ILS"
+
 
 class SessionStatus(str, Enum):
     ACTIVE = "ACTIVE"
@@ -36,7 +41,7 @@ class SessionStatus(str, Enum):
 class SessionUpdateRequest(BaseModel):
     id: Optional[str] = None
     location_id: Optional[str] = None
-    kwh: float = 0.0
+    kWh: float = 0.0
     delivered_kwh: float = 0.0
     current_cost: float = 0.0
     status: SessionStatus = SessionStatus.ENDED
@@ -81,7 +86,8 @@ async def session_updates(request: Request,
     return EventSourceResponse(event_generator())
 
 @router.post("/sessions", tags=["sessions"],
-             description="CPO notifies the eMSP that a Session has started.")
+             response_model=None,
+             description="CPO notifies the eMSP that a new Session has started.")
 async def create_session(
         request: SessionRequest,
         db: AsyncSession = Depends(get_db),
@@ -90,29 +96,30 @@ async def create_session(
 
     now = datetime.now(timezone.utc)
 
-    partner_id = os.getenv("DEFAULT_PARTNER_ID", "c3c3c6a6-5f1a-4f6d-bc8b-6b6f4b1e8d90")
-
-    session = OCPISession(
-        id=request.id,
-        start_date_time=now,
-        kwh=request.kwh,
-        auth_id=request.location_id or "unknown",
+    sessionModel = OCPISessionModel(
+        id = str(uuid.uuid4()),
+        session_id = request.id,
+        start_date_time = now,
+        kWh = request.kWh,
+        total_cost = request.total_cost,
+        auth_id = request.authorization_reference or "unknown",
         auth_method="AUTH_REQUEST",
-        location_id=request.location_id or "unknown",
-        evse_uid=request.evse_uid or "unknown",
+        location_id = request.location_id or "unknown",
+        evse_uid = request.evse_uid or "unknown",
         connector_id=request.connector_id or "unknown",
-        currency="ILS",
-        status=SessionStatus.ACTIVE.value,
+        currency= request.currency,
+        party_id = request.party_id,
+        status = SessionStatus.ACTIVE.value,
         last_updated=now,
-        partner_id=partner_id
-        )
-    # Broadcast to anyone listening for this specific ID
-    await pubsub.publish(request.id, session)
 
-    # db.add(session)
-    # await db.commit()
+    )
+    # Broadcast to anyone listening for this specific session ID
+    await pubsub.publish(request.id, sessionModel)
 
-    return SessionResponse(id=session.id, status=SessionStatus.ACTIVE)
+    db.add(sessionModel)
+    await db.commit()
+
+    return SessionResponse(id=sessionModel.id, status=SessionStatus.ACTIVE)
 
 @router.put("/sessions/{session_id}", tags=["sessions"],
             description="CPO notifies the eMSP that a Session has updated.")
@@ -174,7 +181,7 @@ async def get_session(
     session_id: str,
     db: AsyncSession = Depends(get_db)) -> SessionDetailsResponse:
 
-    stmt = select(OCPISession).where(OCPISession.id == session_id)
+    stmt = select(OCPISessionModel).where(OCPISessionModel.id == session_id)
     result = await db.execute(stmt)
     session = result.scalar_one_or_none()
 
