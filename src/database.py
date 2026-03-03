@@ -8,7 +8,7 @@ from sqlalchemy import select
 from aiocache import cached
 from aiocache.serializers import PickleSerializer
 
-from .models import OCPILocation, EVSE
+from .models import OCPILocation, EVSE, OCPIPartnerModel
 from .exceptions import PartnerNotFoundError
 
 raw_password = os.getenv("PG_PASSWORD")
@@ -73,8 +73,8 @@ async def get_partner(db,
         # and e.evse_id = 'yyy'
 
         stmt = (
-            select(Partner)
-            .join(OCPILocation, Partner.id == OCPILocation.partner_id)
+            select(OCPIPartnerModel)
+            .join(OCPILocation, OCPIPartnerModel.id == OCPILocation.partner_id)
             .join(EVSE, OCPILocation.id== EVSE.location_id)  
             .where(OCPILocation.location_id == location_id,
                    EVSE.evse_id == evse_id)

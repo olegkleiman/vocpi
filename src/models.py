@@ -86,17 +86,29 @@ class OCPISessionModel(Base):
     party_id: Mapped[str] = sa.Column(sa.String(3), nullable=False)
 
     total_cost: Mapped[float] = sa.Column(sa.DECIMAL, nullable=False) # In OCPI prices can have more than 2 decimals
-    kWh: Mapped[float] = sa.Column(sa.Numeric(10, 3), nullable=False)
+    kwh: Mapped[float] = sa.Column(sa.Numeric(10, 3), nullable=False)
     location_id: Mapped[str] = sa.Column(sa.String, nullable=False)
     evse_uid: Mapped[str] = sa.Column(sa.String, nullable=False)
     connector_id: Mapped[str] = sa.Column(sa.String, nullable=False)
     currency: Mapped[str] = sa.Column(sa.String(3), nullable=False)
-    start_date_time: Mapped[datetime] = sa.Column(DateTime(timezone=True), nullable=False)
-    end_date_time: Mapped[Optional[datetime]] = sa.Column(DateTime(timezone=True), nullable=True)
+    # start_date_time: Mapped[datetime] = sa.Column(DateTime(timezone=True), nullable=False)
+    # end_date_time: Mapped[Optional[datetime]] = sa.Column(DateTime(timezone=True), nullable=True)
     last_updated: Mapped[datetime] = mapped_column(
         "created_at",
         DateTime(timezone=True),
         server_default=func.now()
-        
+   )
+
+class OCPISessionsUpdatesModel(Base):
+    __tablename__ = "ocpi_sessions_updates"
+
+    id: Mapped[sa.UUID] = sa.Column(primary_key=True)
+    session_id: Mapped[str] = sa.Column(sa.String, nullable=False)
+    kwh: Mapped[float] = sa.Column(sa.Numeric(10, 3), nullable=False)
+    total_cost: Mapped[float] = sa.Column(sa.DECIMAL, nullable=False)
+    status: Mapped[str] = sa.Column(sa.String(20), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        "updated_at",
+        DateTime(timezone=True),
+        server_default=func.now()
     )
-    # ) sa.Column(DateTime(timezone=True), nullable=False)    

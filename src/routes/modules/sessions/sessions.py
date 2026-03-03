@@ -18,33 +18,29 @@ from sqlalchemy import select, Table, MetaData, Column, String, DateTime, Boolea
 import sqlalchemy as sa
 
 from ....database import get_db
-from ....models import Token, OCPIPartnerModel, TokenAuthorization, OCPISessionModel
+from ....models import Token, OCPIPartnerModel, TokenAuthorization, OCPISessionModel, OCPISessionsUpdatesModel
 
 from ....dependencies import get_pubsub
 
-class SessionRequest(BaseModel):
+class OCPISession(BaseModel):
     id: str = str(uuid.uuid4())
     location_id: Optional[str] = None
     evse_uid: Optional[str] = None
     connector_id: Optional[str] = None
     party_id: str
-    kWh: float = 0.0
+    kwh: float = 0.0
     total_cost: float = 0.0
     authorization_reference: Optional[str] = None
     currency: str = "ILS"
-
+    status: str
+    last_updated: datetime
 
 class SessionStatus(str, Enum):
     ACTIVE = "ACTIVE"
-    ENDED = "ENDED"
-
-class SessionUpdateRequest(BaseModel):
-    id: Optional[str] = None
-    location_id: Optional[str] = None
-    kWh: float = 0.0
-    delivered_kwh: float = 0.0
-    current_cost: float = 0.0
-    status: SessionStatus = SessionStatus.ENDED
+    COMPLETED = "COMPLETED",
+    INVALID = "INVALID",
+    PENDING = "PENDING",
+    RESERVATION = "RESERVATION"
 
 class SessionResponse(BaseModel):
     id: str
@@ -53,10 +49,9 @@ class SessionResponse(BaseModel):
 class SessionDetailsResponse(BaseModel):
     id: str
     status: SessionStatus
-    kwh: float = 0.0
     delivered_kwh: float = 0.0
-    current_cost: float = 0.0    
-    duration: datetime
+    total_cost: str
+    duration: str
 
 @router.get("/sessions/updates/{session_id}", tags=["sessions"],
             description="SSE endpoint for real-time session updates.")
@@ -89,7 +84,7 @@ async def session_updates(request: Request,
              response_model=None,
              description="CPO notifies the eMSP that a new Session has started.")
 async def create_session(
-        request: SessionRequest,
+        request: OCPISession,
         db: AsyncSession = Depends(get_db),
         pubsub = Depends(get_pubsub)
     ) -> SessionResponse:
@@ -99,8 +94,8 @@ async def create_session(
     sessionModel = OCPISessionModel(
         id = str(uuid.uuid4()),
         session_id = request.id,
-        start_date_time = now,
-        kWh = request.kWh,
+        # start_date_time = now,
+        kwh = request.kwh,
         total_cost = request.total_cost,
         auth_id = request.authorization_reference or "unknown",
         auth_method="AUTH_REQUEST",
@@ -110,9 +105,9 @@ async def create_session(
         currency= request.currency,
         party_id = request.party_id,
         status = SessionStatus.ACTIVE.value,
-        last_updated=now,
-
+        last_updated=now
     )
+
     # Broadcast to anyone listening for this specific session ID
     await pubsub.publish(request.id, sessionModel)
 
@@ -124,8 +119,7 @@ async def create_session(
 @router.put("/sessions/{session_id}", tags=["sessions"],
             description="CPO notifies the eMSP that a Session has updated.")
 async def update_session(
-        session_id: str,
-        request: SessionUpdateRequest,
+        request: OCPISession,
         db: AsyncSession = Depends(get_db),
         pubsub = Depends(get_pubsub)
     ) -> SessionResponse:
@@ -137,43 +131,25 @@ async def update_session(
     # if not session:
     #     return SessionResponse(id=session_id, status=SessionStatus.ENDED)
 
-    session = OCPISession(
-        id=session_id,
-        kwh=request.kwh,
-        # current_cost=request.current_cost,
-        status = request.status.value,
-        last_updated = datetime.now(timezone.utc)       
+
+    session_id = request.id
+    sessionModel = OCPISessionsUpdatesModel(
+        id = str(uuid.uuid4()),
+        session_id = session_id,
+        kwh = request.kwh,
+        total_cost = request.total_cost,
+        updated_at = request.last_updated,
+        status = request.status
     )
        
     # Broadcast to anyone listening for this specific ID
-    await pubsub.publish(request.id, session)
+    await pubsub.publish(session_id, sessionModel)
 
-    # await db.commit()
+    db.add(sessionModel)
+    await db.commit()
 
-    # duration = datetime.now(timezone.utc) - session.start_date_time
-    # session.last_updated = datetime.now(timezone.utc)
-    # await cache.hset(f"ocpi:session:{session_id}", 
-    #            mapping={
-    #                "status": session.status,
-    #                "kwh": session.kwh,
-    #                "delivered_kwh": session.delivered_kwh,
-    #                "duration": str(duration),
-    #                "last_updated": session.last_updated.isoformat()
-    #            })
-
-    # event = {
-    #     "event": "SESSION_UPDATED",
-    #     "session_id": session_id,
-    #     "status": session.status,
-    #     "kwh": session.kwh,
-    #     "delivered_kwh": session.delivered_kwh,
-    #     "duration": str(duration),
-    #     "last_updated": session.last_updated.isoformat()
-    # }           
-    # await cache.publish("ocpi:session:updated", json.dumps(event))
-
-    return SessionResponse(id=session.id, status=SessionStatus.ACTIVE)    
-
+    return SessionResponse(id=session_id, 
+                           status=SessionStatus.ACTIVE)    
 
 @router.get("/sessions/{session_id}", tags=["sessions"],
             description="Returns the details of the session.")
@@ -181,27 +157,34 @@ async def get_session(
     session_id: str,
     db: AsyncSession = Depends(get_db)) -> SessionDetailsResponse:
 
-    stmt = select(OCPISessionModel).where(OCPISessionModel.id == session_id)
-    result = await db.execute(stmt)
-    session = result.scalar_one_or_none()
+    # SELECT * FROM public.ocpi_sessions s
+    # JOIN ocpi_sessions_updates u
+    # ON s.session_id = u.session_id
+    # WHERE s.session_id = '<session_id>'
+    # ORDER BY u.updated_at DESC
+    # LIMIT 1
 
-    if not session:
-        return SessionDetailsResponse(
-            id=session_id, 
-            status=SessionStatus.ENDED,
-            kwh=0.0, 
-            delivered_kwh=0.0,
-            current_cost=0.0, 
-            duration=datetime.now(timezone.utc)
-        )
-
-    duration = session.last_updated - session.start_date_time
-    return SessionDetailsResponse(
-        id=session.id, 
-        status=SessionStatus(session.status),
-        kwh=session.kwh,
-        delivered_kwh=getattr(session, 'delivered_kwh', 0.0),
-        current_cost=getattr(session, 'current_cost', 0.0),
-        duration=session.start_date_time
+    stmt = (
+        select(OCPISessionsUpdatesModel)
+        .select_from(OCPISessionModel)
+        .join(OCPISessionsUpdatesModel, OCPISessionModel.session_id == OCPISessionsUpdatesModel.session_id)
+        .where(OCPISessionModel.session_id == session_id)
+        .order_by(OCPISessionsUpdatesModel.updated_at.desc())
+        .limit(1)
     )
-    
+    result = await db.execute(stmt)
+    session: OCPISessionModel = result.scalar_one_or_none()
+ 
+    diff = datetime.now(timezone.utc) - session.updated_at
+    total_seconds = int(diff.total_seconds())
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+
+    return SessionDetailsResponse(
+        id=session_id, 
+        status = session.status,
+        delivered_kwh = session.kwh,
+        total_cost = f"{session.total_cost}", 
+        duration = f"{hours:02}:{minutes:02}"
+    )
+

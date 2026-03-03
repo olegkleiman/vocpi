@@ -56,7 +56,17 @@ async def stop_session(
         async with httpx.AsyncClient() as client:
             response = await client.post(url, headers=headers, json=command_payload, timeout=30.0)
             response.raise_for_status()
-            return response.json()
+            responseWraper = response.json()
+            responseWraper["status_code"] = response.status_code
+            statusCode = responseWraper["status_code"]
+            responseData = responseWraper["data"]
+            responseResult = responseData["result"]
+            if statusCode == 200 and responseResult == "ACCEPTED":
+                # saveSessionHistory()
+                print(f"save to history")
+            
+            return responseWraper
+        
 
     except httpx.HTTPStatusError as e:
         await e.response.aread()
