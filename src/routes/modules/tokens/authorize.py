@@ -15,9 +15,9 @@ import redis
 # from glide import GlideClient
 
 from ....database import get_db
-from ....models import Token, Partner, TokenAuthorization
+from ....models import Token, TokenAuthorization
 
-class TokenAuthorizeRequest(BaseModel):
+class TokenAuthorizePayload(BaseModel):
     location_id: Optional[str] = None
     evse_uid: Optional[str] = None
     connector_id: Optional[str] = None
@@ -40,7 +40,7 @@ class TokenAuthorizeResponse(BaseModel):
              description="Do a 'real-time' authorization request to the eMSP system, validating if a Token might be used (at the optionally given Location).")
 async def authorize_token(
     token_uid: str,
-    request: TokenAuthorizeRequest,
+    payload: TokenAuthorizePayload,
     db: AsyncSession = Depends(get_db)
 ) -> TokenAuthorizeResponse:
 
@@ -82,9 +82,9 @@ async def authorize_token(
             auth_record = TokenAuthorization(
                 id=str(uuid.uuid4()),
                 token_uid=token.uid,
-                location_id=request.location_id,
-                evse_uid=request.evse_uid,
-                connector_id=request.connector_id,
+                location_id=payload.location_id,
+                evse_uid=payload.evse_uid,
+                connector_id=payload.connector_id,
                 result=status.value,
                 requested_at=requested_at
             )
@@ -93,9 +93,9 @@ async def authorize_token(
     
             async with httpx.AsyncClient() as client:
                 response = await client.post(f"{base_url}/ocpi/2.2.1/sessions", json={     
-                    "location_id": request.location_id,
-                    "evse_uid": request.evse_uid,
-                    "connector_id": request.connector_id,
+                    "location_id": payload.location_id,
+                    "evse_uid": payload.evse_uid,
+                    "connector_id": payload.connector_id,
                     "kwh": 10.7
                 })
                 response.raise_for_status()

@@ -1,7 +1,7 @@
 from collections import defaultdict
 import asyncio
 
-class SessionPubSub:
+class OCPIPubSub:
     def __init__(self):
         # Maps session_id -> list of subscriber queues
         self._topics: dict[str, list[asyncio.Queue]] = defaultdict(list)

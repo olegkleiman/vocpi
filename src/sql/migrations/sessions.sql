@@ -1,24 +1,40 @@
-DROP TABLE IF EXISTS ocpi_sessions CASCADE;
+CREATE TABLE IF NOT EXISTS public.ocpi_sessions
+(
+    id text COLLATE pg_catalog."default" NOT NULL,
+    start_date_time timestamp with time zone NOT NULL,
+    end_date_time timestamp with time zone,
+    auth_id text COLLATE pg_catalog."default" NOT NULL,
+    auth_method character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    location_id text COLLATE pg_catalog."default" NOT NULL,
+    evse_uid text COLLATE pg_catalog."default" NOT NULL,
+    connector_id text COLLATE pg_catalog."default" NOT NULL,
+    currency character varying(3) COLLATE pg_catalog."default" NOT NULL,
+    status character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    session_id text COLLATE pg_catalog."default",
+    total_price numeric(12,4),
+    "kWh" numeric(10,3),
+    party_id text COLLATE pg_catalog."default",
+    CONSTRAINT ocpi_sessions_pkey PRIMARY KEY (id)
+)
 
-CREATE TABLE ocpi_sessions (
-    id VARCHAR PRIMARY KEY,
-    start_date_time TIMESTAMP WITH TIME ZONE NOT NULL,
-    end_date_time TIMESTAMP WITH TIME ZONE,
-    kwh FLOAT NOT NULL DEFAULT 0.0,
-    auth_id VARCHAR NOT NULL,
-    auth_method VARCHAR(20) NOT NULL,
-    location_id VARCHAR NOT NULL,
-    evse_uid VARCHAR NOT NULL,
-    connector_id VARCHAR NOT NULL,
-    currency VARCHAR(3) NOT NULL,
-    status VARCHAR(20) NOT NULL,
-    last_updated TIMESTAMP WITH TIME ZONE NOT NULL,
-    token_uid VARCHAR REFERENCES ocpi_tokens(VARCHAR),
-    partner_id UUID NOT NULL REFERENCES ocpi_partners(id)
-);
+TABLESPACE pg_default;
 
-CREATE INDEX IF NOT EXISTS idx_sessions_id ON ocpi_sessions(id);
-CREATE INDEX idx_sessions_token_uid ON ocpi_sessions(token_uid);
-CREATE INDEX idx_sessions_partner_id ON ocpi_sessions(partner_id);
-CREATE INDEX idx_sessions_status ON ocpi_sessions(status);
-CREATE INDEX idx_sessions_start_date ON ocpi_sessions(start_date_time);
+ALTER TABLE public.ocpi_sessions
+    OWNER to postgres;
+
+-- Index: public.idx_sessions_id
+CREATE INDEX IF NOT EXISTS idx_sessions_id
+    ON public.ocpi_sessions USING btree
+    (id COLLATE pg_catalog."default" ASC NULLS LAST)
+    TABLESPACE pg_default;
+-- Index: public.idx_sessions_start_date
+CREATE INDEX IF NOT EXISTS idx_sessions_start_date
+    ON public.ocpi_sessions USING btree
+    (start_date_time ASC NULLS LAST)
+    TABLESPACE pg_default;
+-- Index: public.idx_sessions_status
+CREATE INDEX IF NOT EXISTS idx_sessions_status
+    ON public.ocpi_sessions USING btree
+    (status COLLATE pg_catalog."default" ASC NULLS LAST)
+    TABLESPACE pg_default;
