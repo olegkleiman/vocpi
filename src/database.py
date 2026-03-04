@@ -27,10 +27,10 @@ DATABASE_URL = f"postgresql+psycopg://{pg_username}:{pg_password}@{pg_host}:{pg_
 
 engine = create_async_engine(
     DATABASE_URL,
-    pool_size=20,
-    max_overflow=10,
-    pool_pre_ping=True,
-    pool_recycle=300,
+    pool_size=5,        # Number of permanent connections
+    max_overflow=10,    # How many extra can be opened during peaks
+    pool_pre_ping=True, 
+    pool_recycle=300,   # Close connections after 5 mins
     connect_args={
         "application_name": "vocpi_app",
         "keepalives": 1,

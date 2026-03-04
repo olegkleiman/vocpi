@@ -20,7 +20,7 @@ import sqlalchemy as sa
 from ....database import get_db
 from ....models import Token, OCPIPartnerModel, TokenAuthorization, OCPISessionModel, OCPISessionsUpdatesModel
 
-from ....dependencies import get_pubsub
+from ....dependencies import get_pubsub, get_session_db_service
 
 class OCPISession(BaseModel):
     id: str = str(uuid.uuid4())
@@ -53,21 +53,21 @@ class SessionDetailsResponse(BaseModel):
     total_cost: str
     duration: str
 
-@router.get("/sessions/updates/{session_id}", tags=["sessions"],
+@router.get("/sessions/updates/{session_request_id}", tags=["sessions"],
             description="SSE endpoint for real-time session updates.")
 async def session_updates(request: Request, 
-                          session_id: str, 
+                          session_request_id: str, 
                           pubsub = Depends(get_pubsub)):
 
-    queue = await pubsub.subscribe(session_id)
+    queue = await pubsub.subscribe(session_request_id)
 
     async def event_generator():
 
         while True:
 
             if await request.is_disconnected():
-                print(f"Session {session_id} disconnected")
-                await pubsub.unsubscribe(session_id, queue) 
+                print(f"Session {session_request_id} disconnected")
+                await pubsub.unsubscribe(session_request_id, queue) 
                 break
 
             # Every client is waiting on the SAME queue
@@ -84,32 +84,36 @@ async def session_updates(request: Request,
              response_model=None,
              description="CPO notifies the eMSP that a new Session has started.")
 async def create_session(
-        request: OCPISession,
+        session: OCPISession,
+        session_service = Depends(get_session_db_service),
         db: AsyncSession = Depends(get_db),
         pubsub = Depends(get_pubsub)
     ) -> SessionResponse:
 
     now = datetime.now(timezone.utc)
 
+    request_id = await session_service.get_request_id(session.location_id, session.evse_uid, session.connector_id)
+    await session_service.set_session_id(request_id, session.id)
+
     sessionModel = OCPISessionModel(
         id = str(uuid.uuid4()),
-        session_id = request.id,
+        session_id = session.id,
         # start_date_time = now,
-        kwh = request.kwh,
-        total_cost = request.total_cost,
-        auth_id = request.authorization_reference or "unknown",
+        kwh = session.kwh,
+        total_cost = session.total_cost,
+        auth_id = session.authorization_reference or "unknown",
         auth_method="AUTH_REQUEST",
-        location_id = request.location_id or "unknown",
-        evse_uid = request.evse_uid or "unknown",
-        connector_id=request.connector_id or "unknown",
-        currency= request.currency,
-        party_id = request.party_id,
+        location_id = session.location_id or "unknown",
+        evse_uid = session.evse_uid or "unknown",
+        connector_id=session.connector_id or "unknown",
+        currency= session.currency,
+        party_id = session.party_id,
         status = SessionStatus.ACTIVE.value,
         last_updated=now
     )
 
     # Broadcast to anyone listening for this specific session ID
-    await pubsub.publish(request.id, sessionModel)
+    await pubsub.publish(request_id, sessionModel)
 
     db.add(sessionModel)
     await db.commit()
@@ -119,10 +123,13 @@ async def create_session(
 @router.put("/sessions/{session_id}", tags=["sessions"],
             description="CPO notifies the eMSP that a Session has updated.")
 async def update_session(
-        request: OCPISession,
+        session: OCPISession,
+        session_service = Depends(get_session_db_service),
         db: AsyncSession = Depends(get_db),
         pubsub = Depends(get_pubsub)
     ) -> SessionResponse:
+
+    request_id = await session_service.get_request_id(session.location_id, session.evse_uid, session.connector_id)
 
     # stmt = select(OCPISession).where(OCPISession.id == session_id)
     # result = await db.execute(stmt)
@@ -132,18 +139,18 @@ async def update_session(
     #     return SessionResponse(id=session_id, status=SessionStatus.ENDED)
 
 
-    session_id = request.id
+    session_id = session.id
     sessionModel = OCPISessionsUpdatesModel(
         id = str(uuid.uuid4()),
         session_id = session_id,
-        kwh = request.kwh,
-        total_cost = request.total_cost,
-        updated_at = request.last_updated,
-        status = request.status
+        kwh = session.kwh,
+        total_cost = session.total_cost,
+        updated_at = session.last_updated,
+        status = session.status
     )
        
     # Broadcast to anyone listening for this specific ID
-    await pubsub.publish(session_id, sessionModel)
+    await pubsub.publish(request_id, sessionModel)
 
     db.add(sessionModel)
     await db.commit()

@@ -9,7 +9,7 @@ import os
 
 from ....router import router
 from ....database import get_db, get_partner
-from .models import CommandResponseWrapper, StopSessionPayload
+from ....models import CommandResponseWrapper, StopSessionPayload
 from ....models import OCPISessionModel, OCPIPartnerModel
 
 CALLBACK_BASE_URL = os.getenv("CALLBACK_BASE_URL")

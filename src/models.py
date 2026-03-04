@@ -1,10 +1,44 @@
 from sqlalchemy.orm import Mapped, mapped_column, relationship, DeclarativeBase
-from sqlalchemy import String, Column, DateTime, Boolean, UUID
+from sqlalchemy import String, Column, DateTime, Boolean, UUID, Text
 from datetime import datetime
 from typing import Optional
 import uuid
+from enum import Enum
 import sqlalchemy as sa
 from sqlalchemy.sql import func
+
+from pydantic import BaseModel
+
+#== Pydantic models
+
+class CommandResponseType(str, Enum):
+    ACCEPTED = "ACCEPTED"
+    NOT_SUPPORTED = "NOT_SUPPORTED"
+    REJECTED = "REJECTED"
+    UNKNOWN_SESSION = "UNKNOWN_SESSION"
+
+class CommandResponse(BaseModel):
+    result: CommandResponseType
+
+class CommandResponseWrapper(BaseModel):
+    status_code: int
+    status_message: str
+    timestamp: str
+    data: Optional[CommandResponse] = None
+
+class StartSessionPayload(BaseModel):
+    location_id: Optional[str] = None
+    evse_uid: Optional[str] = None
+    connector_id: Optional[str] = None
+
+class StopSessionPayload(BaseModel):
+    session_id: str    
+
+class BeginSessionResponse(BaseModel):
+    request_id: str
+
+
+#== SqlAlchemy models
 
 class Base(DeclarativeBase):
     pass
@@ -74,6 +108,16 @@ class TokenAuthorization(Base):
     connector_id: Mapped[Optional[str]] = sa.Column(sa.String, nullable=True)
     result: Mapped[str] = sa.Column(sa.String(20), nullable=False)
     requested_at: Mapped[datetime] = sa.Column(DateTime(timezone=True), nullable=False)
+
+class SessionRequestModel(Base):
+    __tablename__ = "sessions_requests"
+
+    id: Mapped[sa.UUID] = sa.Column(primary_key=True, default=uuid.uuid4)
+    session_id: Mapped[str] = mapped_column(Text, nullable=True)
+    request_id: Mapped[str] = mapped_column(Text, nullable=True)
+    location_id: Mapped[str] = mapped_column(Text, nullable=True)
+    evse_id: Mapped[str] = mapped_column(Text, nullable=True)
+    connector_id: Mapped[str] = mapped_column(Text, nullable=True)
 
 class OCPISessionModel(Base):    
     __tablename__ = "ocpi_sessions"
