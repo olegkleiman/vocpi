@@ -16,7 +16,7 @@ class VersionNumber(str, Enum):
 
 OCPI_PREFIX: str = 'ocpi'
 
-from .router import router
+from .router import router, api_router
 
 app = FastAPI(
     title=OCPI_PREFIX,
@@ -26,6 +26,7 @@ app = FastAPI(
 
 prefix = f"/{OCPI_PREFIX}/{VersionNumber.v_2_2_1.value}"
 app.include_router(router, prefix=prefix)
+app.include_router(api_router, prefix="/api", tags=["Custom API"])
 
 if __name__ == "__main__":
     uvicorn.run(

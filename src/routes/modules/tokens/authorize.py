@@ -11,11 +11,8 @@ from enum import Enum
 import uuid
 import logging
 
-import redis
-# from glide import GlideClient
-
 from ....database import get_db
-from ....models import Token, TokenAuthorization
+from ....models import Token, TokenAuthorization, OCPIPartnerModel
 
 class TokenAuthorizePayload(BaseModel):
     location_id: Optional[str] = None

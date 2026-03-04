@@ -7,14 +7,14 @@ from sqlalchemy import select
 import http.client
 import os
 
-from ....router import router
+from ....router import router, api_router
 from ....database import get_db
 from ....dependencies import get_session_db_service
 from ....models import CommandResponseWrapper, CommandResponseType, StopSessionPayload, FinishSesionPayload
 
 CALLBACK_BASE_URL = os.getenv("CALLBACK_BASE_URL")
 
-@router.post("/commands/finish_session", tags=["Custom API"],
+@api_router.post("/finish_session", tags=["Custom API"],
              status_code=status.HTTP_202_ACCEPTED,
             description="Ends the current session.")
 async def finish_session(payload: FinishSesionPayload,

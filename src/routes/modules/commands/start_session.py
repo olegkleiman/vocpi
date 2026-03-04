@@ -10,7 +10,7 @@ import os
 import logging
 import secrets
 
-from ....router import router
+from ....router import router, api_router
 from ....dependencies import get_session_db_service
 from ....models import CommandResponseWrapper, StartSessionPayload, BeginSessionResponse
 from ..tokens.token_payload import TokenPayload
@@ -19,7 +19,7 @@ rfid_token_file_path = os.getenv("RFID_FAKE_TOKEN_FILE_PATH")
 CALLBACK_BASE_URL = os.getenv("CALLBACK_BASE_URL")
 logger = logging.getLogger(__name__)
 
-@router.post("/commands/begin_session", tags=["Custom API"],
+@api_router.post("/begin_session", tags=["Custom API"],
             description="Begins a new session with the CPO.",
             response_model = BeginSessionResponse)
 async def begin_session(payload: StartSessionPayload,
@@ -81,17 +81,6 @@ async def start_session(
             response = await client.post(url, headers=headers, json=command_payload, timeout=30.0)
             response.raise_for_status()
             jsonResponse: CommandResponseWrapper = response.json()
-           
-            # session_request = SessionRequestModel(
-            #     request_id = random_req_id,
-            #     location_id = payload.location_id,
-            #     evse_id = payload.evse_uid,
-            #     connector_id = payload.connector_id,
-            # )
-
-            # db.add(session_request)
-            # await db.commit()
-            # await db.refresh(session_request)
 
             logger.debug(json.dumps(jsonResponse))
             return jsonResponse
