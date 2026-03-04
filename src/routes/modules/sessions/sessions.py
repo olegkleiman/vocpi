@@ -53,7 +53,7 @@ class SessionDetailsResponse(BaseModel):
     total_cost: str
     duration: str
 
-@router.get("/sessions/updates/{session_request_id}", tags=["sessions"],
+@router.get("/sessions/updates/{session_request_id}", tags=["Sessions"],
             description="SSE endpoint for real-time session updates.")
 async def session_updates(request: Request, 
                           session_request_id: str, 
@@ -80,7 +80,7 @@ async def session_updates(request: Request,
 
     return EventSourceResponse(event_generator())
 
-@router.post("/sessions", tags=["sessions"],
+@router.post("/sessions", tags=["Sessions"],
              response_model=None,
              description="CPO notifies the eMSP that a new Session has started.")
 async def create_session(
@@ -96,7 +96,7 @@ async def create_session(
     await session_service.set_session_id(request_id, session.id)
 
     sessionModel = OCPISessionModel(
-        id = str(uuid.uuid4()),
+        id = str(uuid.uuid4()), 
         session_id = session.id,
         # start_date_time = now,
         kwh = session.kwh,
@@ -120,7 +120,7 @@ async def create_session(
 
     return SessionResponse(id=sessionModel.id, status=SessionStatus.ACTIVE)
 
-@router.put("/sessions/{session_id}", tags=["sessions"],
+@router.put("/sessions/{session_id}", tags=["Sessions"],
             description="CPO notifies the eMSP that a Session has updated.")
 async def update_session(
         session: OCPISession,
@@ -130,14 +130,6 @@ async def update_session(
     ) -> SessionResponse:
 
     request_id = await session_service.get_request_id(session.location_id, session.evse_uid, session.connector_id)
-
-    # stmt = select(OCPISession).where(OCPISession.id == session_id)
-    # result = await db.execute(stmt)
-    # session = result.scalar_one_or_none()
-
-    # if not session:
-    #     return SessionResponse(id=session_id, status=SessionStatus.ENDED)
-
 
     session_id = session.id
     sessionModel = OCPISessionsUpdatesModel(
@@ -158,7 +150,7 @@ async def update_session(
     return SessionResponse(id=session_id, 
                            status=SessionStatus.ACTIVE)    
 
-@router.get("/sessions/{session_id}", tags=["sessions"],
+@router.get("/sessions/{session_id}", tags=["Sessions"],
             description="Returns the details of the session.")
 async def get_session(
     session_id: str,

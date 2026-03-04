@@ -3,7 +3,7 @@ from sqlalchemy import select
 from aiocache import cached
 from aiocache.serializers import PickleSerializer
 
-from ..models import SessionRequestModel,  OCPILocation, EVSE, OCPIPartnerModel
+from ..models import SessionRequestModel,  OCPILocation, EVSE, OCPIPartnerModel, OCPISessionModel
 from ..exceptions import PartnerNotFoundError
 
 class SessionService:
@@ -67,6 +67,23 @@ class SessionService:
             self.db.add(session_request)
             await self.db.commit()
             await self.db.refresh(session_request)
+
+    async def get_partner_from_session_id(self,
+                                          session_id:str):
+        stmt = (
+            select(
+                OCPIPartnerModel.base_url, 
+                OCPIPartnerModel.token, 
+                OCPIPartnerModel.version
+            )
+            # Start from Sessions, join Partners
+            .select_from(OCPISessionModel) 
+            .join(OCPIPartnerModel, OCPISessionModel.party_id == OCPIPartnerModel.party_id)
+            .where(OCPISessionModel.session_id == session_id)
+        )
+        result = await self.db.execute(stmt)
+        partner_data = result.first()
+        return partner_data
 
     @cached(ttl=600, key="{location_id}:{evse_id}", serializer=PickleSerializer())
     async def get_partner(self,

@@ -36,7 +36,7 @@ class TokenAuthorizeResponse(BaseModel):
     info: str | None = None
 
 
-@router.post("/tokens/{token_uid}/authorize", tags=["tokens"], 
+@router.post("/tokens/{token_uid}/authorize", tags=["Tokens"], 
              description="Do a 'real-time' authorization request to the eMSP system, validating if a Token might be used (at the optionally given Location).")
 async def authorize_token(
     token_uid: str,
@@ -59,7 +59,7 @@ async def authorize_token(
             .join(Token.partner)
             .where(
                 Token.uid == token_uid,
-                Partner.country_code == "IL",
+                OCPIPartnerModel.country_code == "IL",
             )
             .options(selectinload(Token.partner))
         )

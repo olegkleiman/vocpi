@@ -11,7 +11,6 @@ import logging
 import secrets
 
 from ....router import router
-from ....database import get_db
 from ....dependencies import get_session_db_service
 from ....models import CommandResponseWrapper, StartSessionPayload, BeginSessionResponse
 from ..tokens.token_payload import TokenPayload
@@ -21,7 +20,7 @@ CALLBACK_BASE_URL = os.getenv("CALLBACK_BASE_URL")
 logger = logging.getLogger(__name__)
 
 @router.post("/commands/begin_session", tags=["Custom API"],
-            description="Sends a START_SESSION command to the CPO.",
+            description="Begins a new session with the CPO.",
             response_model = BeginSessionResponse)
 async def begin_session(payload: StartSessionPayload,
                         session_service = Depends(get_session_db_service)):
@@ -32,17 +31,23 @@ async def begin_session(payload: StartSessionPayload,
         connector_id = payload.connector_id
 
         request_id = await session_service.get_request_id(location_id, evse_id, connector_id)
-        if request_id:
-            payload = StartSessionPayload(location_id=location_id,
+        if not request_id:
+             random_req_id:int = secrets.token_hex(8)
+             await session_service._start_session(random_req_id,
+                                                location_id = payload.location_id,
+                                                evse_id = payload.evse_uid,
+                                                connector_id = payload.connector_id)
+        
+        payload = StartSessionPayload(location_id=location_id,
                                           evse_uid=evse_id,
                                           connector_id=connector_id)
-            response = await start_session(payload = payload, session_service = session_service)
-            return { "request_id":  request_id }
+        response = await start_session(payload = payload, session_service = session_service)
+        return { "request_id":  request_id }
 
     except Exception as e:
         raise
 
-@router.post("/commands/start_session", tags=["commands"],
+@router.post("/commands/start_session", tags=["Commands"],
             description="Sends a START_SESSION command to the CPO.",
             response_model=CommandResponseWrapper)
 async def start_session(
@@ -76,13 +81,7 @@ async def start_session(
             response = await client.post(url, headers=headers, json=command_payload, timeout=30.0)
             response.raise_for_status()
             jsonResponse: CommandResponseWrapper = response.json()
-
-            random_req_id:int = secrets.token_hex(8)
-            await session_service._start_session(random_req_id,
-                                                location_id = payload.location_id,
-                                                evse_id = payload.evse_uid,
-                                                connector_id = payload.connector_id)
-            
+           
             # session_request = SessionRequestModel(
             #     request_id = random_req_id,
             #     location_id = payload.location_id,

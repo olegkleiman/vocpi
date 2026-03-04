@@ -43,7 +43,7 @@ def has_location_changed(new_data: dict, old_data: dict) -> bool:
     last_comp.pop('timestamp', None)
     return current_comp != last_comp
 
-@router.get("/locations/updates/{location_id}/{evse_id}", tags=["locations"],
+@router.get("/locations/updates/{location_id}/{evse_id}", tags=["Locations"],
             description="SSE endpoint for real-time location/evse updates")
 async def location_updates(request: Request, 
                            location_id: str,
@@ -93,7 +93,7 @@ async def location_updates(request: Request,
   
     return EventSourceResponse(event_generator())
 
-@router.get("/locations/{location_id}/{evse_id}", tags=["locations"])
+@router.get("/locations/{location_id}/{evse_id}", tags=["Locations"])
 async def get_location(location_id: str,
                         evse_id: str,
                         db: AsyncSession = Depends(get_db)) -> dict:
