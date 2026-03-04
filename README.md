@@ -4,7 +4,7 @@ FastAPI-based implementation of OCPI 2.2.1 (Open Charge Point Interface) for ele
 
 ## Features
 
-- Token authorization with caching (Valkey/Redis)
+- Token authorization
 - Session management
 - Partner management
 - PostgreSQL with async SQLAlchemy
@@ -14,7 +14,6 @@ FastAPI-based implementation of OCPI 2.2.1 (Open Charge Point Interface) for ele
 
 - Python 3.13+
 - PostgreSQL
-- Valkey/Redis (optional, for caching)
 
 ## Installation
 
@@ -52,9 +51,7 @@ uvicorn src.main:app --host 0.0.0.0 --port 8080 --reload
 
 ## API Endpoints
 
-- `POST /ocpi/2.2.1/tokens/{token_uid}/authorize` - Authorize token
-- `POST /ocpi/2.2.1/sessions` - Create session
-- `GET /docs` - API documentation
+- `GET /docs` - Swagger API documentation
 
 ## Project Structure
 
