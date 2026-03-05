@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from aiocache import cached
 from aiocache.serializers import PickleSerializer
 
@@ -26,18 +26,6 @@ class SessionService:
         request_id = result.scalar()
         return request_id
     
-    async def set_session_id(self,
-                             request_id: str, 
-                             session_id: str):
-         stmt = select(SessionRequestModel).where(SessionRequestModel.request_id == request_id)
-         result = await self.db.execute(stmt)
-         record = result.scalar_one_or_none()
-
-         if record:
-            record.session_id = session_id
-            
-            await self.db.commit()
-            await self.db.refresh(record)
 
     async def get_session_id(
             self,
@@ -49,9 +37,24 @@ class SessionService:
         )
         result = await self.db.execute(smt)
         session_id = result.scalar()
-        return session_id
-    
-    async def _start_session(self,
+        return session_id    
+
+    # Associate existing request_id with passed session_id
+    async def set_session_id(self,
+                             request_id: str, 
+                             session_id: str
+    )-> None:
+         stmt = select(SessionRequestModel).where(SessionRequestModel.request_id == request_id)
+         result = await self.db.execute(stmt)
+         record = result.scalar_one_or_none()
+
+         if record:
+            record.session_id = session_id
+            
+            await self.db.commit()
+            await self.db.refresh(record)
+
+    async def save_session(self,
                              request_id,
                             location_id: str,
                             evse_id: str,
@@ -67,6 +70,15 @@ class SessionService:
             self.db.add(session_request)
             await self.db.commit()
             await self.db.refresh(session_request)
+
+    async def delete_session(self,
+                             request_id: str):
+        stmt = (
+            delete(SessionRequestModel)
+            .where(SessionRequestModel.request_id == request_id)
+        )
+        result = await self.db.execute(stmt)
+        await self.db.commit()
 
     async def get_partner_from_session_id(self,
                                           session_id:str):

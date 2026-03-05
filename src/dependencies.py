@@ -4,13 +4,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .database import get_db
 from .app_services.session_service import SessionService
-from .session_pubsub import OCPIPubSub
+from .pubsub import OCPIPubSub
 
 pubsub_manager = OCPIPubSub()
 
 def get_pubsub() -> OCPIPubSub:
     return pubsub_manager
 
-async def get_session_db_service(db: AsyncSession = Depends(get_db)) -> SessionService:
+async def get_session_service(db: AsyncSession = Depends(get_db)) -> SessionService:
     return SessionService(db)
 

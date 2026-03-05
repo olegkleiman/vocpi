@@ -20,7 +20,7 @@ import sqlalchemy as sa
 from ....database import get_db
 from ....models import Token, OCPIPartnerModel, TokenAuthorization, OCPISessionModel, OCPISessionsUpdatesModel
 
-from ....dependencies import get_pubsub, get_session_db_service
+from ....dependencies import get_pubsub, get_session_service
 
 class OCPISession(BaseModel):
     id: str = str(uuid.uuid4())
@@ -85,7 +85,7 @@ async def session_updates(request: Request,
              description="CPO notifies the eMSP that a new Session has started.")
 async def create_session(
         session: OCPISession,
-        session_service = Depends(get_session_db_service),
+        session_service = Depends(get_session_service),
         db: AsyncSession = Depends(get_db),
         pubsub = Depends(get_pubsub)
     ) -> SessionResponse:
@@ -93,6 +93,7 @@ async def create_session(
     now = datetime.now(timezone.utc)
 
     request_id = await session_service.get_request_id(session.location_id, session.evse_uid, session.connector_id)
+    # Accociate this request_id with session.id
     await session_service.set_session_id(request_id, session.id)
 
     sessionModel = OCPISessionModel(
@@ -124,7 +125,7 @@ async def create_session(
             description="CPO notifies the eMSP that a Session has updated.")
 async def update_session(
         session: OCPISession,
-        session_service = Depends(get_session_db_service),
+        session_service = Depends(get_session_service),
         db: AsyncSession = Depends(get_db),
         pubsub = Depends(get_pubsub)
     ) -> SessionResponse:

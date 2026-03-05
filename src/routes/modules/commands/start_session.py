@@ -1,6 +1,4 @@
-from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from fastapi import Depends, Request, HTTPException
 
 import httpx
@@ -11,7 +9,7 @@ import logging
 import secrets
 
 from ....router import router, api_router
-from ....dependencies import get_session_db_service
+from ....dependencies import get_session_service
 from ....models import CommandResponseWrapper, StartSessionPayload, BeginSessionResponse
 from ..tokens.token_payload import TokenPayload
 
@@ -23,7 +21,7 @@ logger = logging.getLogger(__name__)
             description="Begins a new session with the CPO.",
             response_model = BeginSessionResponse)
 async def begin_session(payload: StartSessionPayload,
-                        session_service = Depends(get_session_db_service)):
+                        session_service = Depends(get_session_service)):
     try:
 
         location_id = payload.location_id
@@ -33,7 +31,8 @@ async def begin_session(payload: StartSessionPayload,
         request_id = await session_service.get_request_id(location_id, evse_id, connector_id)
         if not request_id:
              random_req_id:int = secrets.token_hex(8)
-             await session_service._start_session(random_req_id,
+             request_id = random_req_id
+             await session_service.save_session(random_req_id,
                                                 location_id = payload.location_id,
                                                 evse_id = payload.evse_uid,
                                                 connector_id = payload.connector_id)
@@ -52,7 +51,7 @@ async def begin_session(payload: StartSessionPayload,
             response_model=CommandResponseWrapper)
 async def start_session(
     payload: StartSessionPayload,
-    session_service = Depends(get_session_db_service)):
+    session_service = Depends(get_session_service)):
 
     try:
         partner_data = await session_service.get_partner(payload.location_id, payload.evse_uid)

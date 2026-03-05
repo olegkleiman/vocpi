@@ -8,7 +8,7 @@ class OCPIPubSub:
 
     async def subscribe(self, topic_id: str):
         """Creates a private queue for a client to listen to a specific topic."""
-        queue = asyncio.Queue()
+        queue = asyncio.Queue(maxsize=100)
         self._topics[topic_id].append(queue)
         return queue
 
@@ -24,4 +24,4 @@ class OCPIPubSub:
         if topic_id in self._topics:
             # We send to all queues associated with this topic
             for queue in self._topics[topic_id]:
-                await queue.put(message)
+                await queue.put_nowait(message)

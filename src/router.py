@@ -8,6 +8,6 @@ from .routes.modules.locations.locations import get_location
 from .routes.modules.sessions.sessions import create_session
 from .routes.modules.config.config import app_config
 from .routes.modules.commands.start_session import start_session, begin_session
-from .routes.modules.commands.stop_session  import stop_session
+from .routes.modules.commands.stop_session  import stop_session, end_session
 
 

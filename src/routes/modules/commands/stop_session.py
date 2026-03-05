@@ -1,34 +1,39 @@
-from pydantic import BaseModel
 from typing import Optional
 from fastapi import Depends, Request, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 import httpx
-from sqlalchemy import select
+
 import http.client
 import os
 
 from ....router import router, api_router
-from ....database import get_db
-from ....dependencies import get_session_db_service
-from ....models import CommandResponseWrapper, CommandResponseType, StopSessionPayload, FinishSesionPayload
+from ....dependencies import get_session_service
+from ....models import CommandResponseWrapper, CommandResponseType, StopSessionPayload, EndSessionPayload
 
 CALLBACK_BASE_URL = os.getenv("CALLBACK_BASE_URL")
 
-@api_router.post("/finish_session", tags=["Custom API"],
+@api_router.post("/end_session", tags=["Custom API"],
              status_code=status.HTTP_202_ACCEPTED,
             description="Ends the current session.")
-async def finish_session(payload: FinishSesionPayload,
-                         session_service = Depends(get_session_db_service)):
+async def end_session(payload: EndSessionPayload,
+                     session_service = Depends(get_session_service)):
     try:
-        session_id = await session_service.get_session_id(payload.session_request_id)
+        session_id = await session_service.get_session_id(payload.session_id)
         if session_id is None:
             raise HTTPException(status_code=404, detail="Session not found")
+        
+        # Delete session from Db.
+        # It is referenced by payload.session_id, but actually it is request_id as it was saved initially
+        await session_service.delete_session(request_id = payload.session_id)
 
-        payload = StopSessionPayload(session_id=session_id)
-        response: CommandResponseWrapper = await stop_session(payload = payload, session_service = session_service)
+        stop_payload = StopSessionPayload(session_id=session_id)
+        response: CommandResponseWrapper = await stop_session(payload = stop_payload, session_service = session_service)
         if response.data.result != CommandResponseType.ACCEPTED:
-            raise HTTPException(status_code=404)
+            raise HTTPException(status_code=404, detail="Session not found")
         return response
+    except HTTPException:
+        # Re-raise HTTPExceptions so FastAPI can handle them (404, 400, etc.)
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to finish session: {e}")
 
@@ -38,8 +43,7 @@ async def finish_session(payload: FinishSesionPayload,
             response_model=CommandResponseWrapper)
 async def stop_session(
     payload: StopSessionPayload,
-    session_service = Depends(get_session_db_service),
-    db: AsyncSession = Depends(get_db)):
+    session_service = Depends(get_session_service)):
 
     try:
         if not CALLBACK_BASE_URL:

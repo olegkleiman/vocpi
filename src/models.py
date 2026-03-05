@@ -34,7 +34,7 @@ class StartSessionPayload(BaseModel):
 class StopSessionPayload(BaseModel):
     session_id: str    
 
-class FinishSesionPayload(BaseModel):
+class EndSessionPayload(BaseModel):
     session_id: str
 
 class BeginSessionResponse(BaseModel):
