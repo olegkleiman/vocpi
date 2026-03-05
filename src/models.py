@@ -35,10 +35,10 @@ class StopSessionPayload(BaseModel):
     session_id: str    
 
 class FinishSesionPayload(BaseModel):
-    session_request_id: str
+    session_id: str
 
 class BeginSessionResponse(BaseModel):
-    request_id: str
+    session_id: str
 
 
 #== SqlAlchemy models

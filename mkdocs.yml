@@ -1,5 +1,5 @@
-site_name: Verifone OCPI API Documentation
-site_description: Documentation for the Verifone OCPI API implementation.
+site_name: OCPI API Documentation
+site_description: Documentation for the OCPI API implementation.
 theme:
   name: material
   features:

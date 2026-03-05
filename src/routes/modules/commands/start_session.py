@@ -42,7 +42,7 @@ async def begin_session(payload: StartSessionPayload,
                                           evse_uid=evse_id,
                                           connector_id=connector_id)
         response = await start_session(payload = payload, session_service = session_service)
-        return { "request_id":  request_id }
+        return { "session_id":  request_id }
 
     except Exception as e:
         raise
