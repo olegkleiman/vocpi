@@ -1,4 +1,5 @@
 import logging
+import sys
 from ....router import router
 from pydantic import BaseModel
 from typing import Optional
@@ -17,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import sqlalchemy as sa
 
 from ....database import get_db
-from ....models import Token, OCPIPartnerModel, TokenAuthorization, OCPISessionModel, OCPISessionsUpdatesModel
+from ....models import OCPISessionModel, OCPISessionsUpdatesModel
 
 from ....dependencies import get_pubsub, get_session_service
 
@@ -192,6 +193,9 @@ async def get_session(
     result = await db.execute(stmt)
     session: OCPISessionModel = result.scalar_one_or_none()
  
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session with id {session_id} not found")
+
     diff = datetime.now(timezone.utc) - session.updated_at
     total_seconds = int(diff.total_seconds())
     hours = total_seconds // 3600
@@ -204,4 +208,3 @@ async def get_session(
         total_cost = f"{session.total_cost}", 
         duration = f"{hours:02}:{minutes:02}"
     )
-
