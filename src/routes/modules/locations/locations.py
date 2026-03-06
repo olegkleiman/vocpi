@@ -64,15 +64,15 @@ async def location_updates(request: Request,
                 try:
                     location_data = await location_service.get_location_details(location_id, evse_id)
 
-                    if has_location_changed(location_data, last_data):
-                        last_data = location_data
-                        yield {
-                            "event": "update", # SSE usually needs an event name
-                            "id": f"{location_id}:{evse_id}", # str(uuid.uuid4()), # Unique ID for each event
-                            "data" :json.dumps(jsonable_encoder(location_data)),
-                        }
-                    else: 
-                        logger.debug(f"{datetime.now()} Pulled location data is the same for '{location_id}:{evse_id}' - skipping publishing to SSE")
+                    # if has_location_changed(location_data, last_data):
+                    #     last_data = location_data
+                    yield {
+                        "event": "update", # SSE usually needs an event name
+                        "id": f"{location_id}:{evse_id}", # str(uuid.uuid4()), # Unique ID for each event
+                        "data" :json.dumps(jsonable_encoder(location_data)),
+                    }
+                    # else: 
+                    #     logger.debug(f"{datetime.now()} Pulled location data is the same for '{location_id}:{evse_id}' - skipping publishing to SSE")
                         
                 except asyncio.TimeoutError:
                     # Send a 'heartbeat' comment if no message arrived

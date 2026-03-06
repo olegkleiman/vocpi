@@ -1,13 +1,15 @@
 from sqlalchemy.orm import Mapped, mapped_column, relationship, DeclarativeBase
 from sqlalchemy import String, Column, DateTime, Boolean, UUID, Text
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
+
 import uuid
 from enum import Enum
 import sqlalchemy as sa
 from sqlalchemy.sql import func
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ConfigDict, AliasPath
+from datetime import datetime
 
 #== Pydantic models
 
@@ -40,7 +42,45 @@ class EndSessionPayload(BaseModel):
 class BeginSessionResponse(BaseModel):
     session_id: str
 
+# == Location
 
+class TargetConnector(BaseModel):
+    name: str  # Map from Connector.id
+    type: str  # Map from Connector.power_type
+    standard: str
+    status: str  # Map from EVSE.status
+    price_per_kwh: float = 1.23 # Default as per your example
+    price_per_minute: float = 0.45
+
+class TargetLocation(BaseModel):
+    name: str
+    address: str
+    city: str
+    currency: str = "USD"
+    connectors: List[TargetConnector]
+
+class CPOConnector(BaseModel):
+    id: str
+    standard: str
+    power_type: str
+    tariff_id: str
+
+
+class EVSE(BaseModel):
+    status: str
+    evse_id: str
+    connectors: List[CPOConnector]
+
+class LocationData(BaseModel):
+    name: str
+    city: str
+    address: str
+    evses: List[EVSE]
+
+class CPOLocationResponse(BaseModel):
+    data: LocationData
+
+    
 #== SqlAlchemy models
 
 class Base(DeclarativeBase):
@@ -68,7 +108,7 @@ class OCPILocation(Base):
     description: Mapped[str] = mapped_column(String)
     address: Mapped[str] = mapped_column(String)
 
-class EVSE(Base):
+class EVSEModel(Base):
     __tablename__ = "ocpi_evses"
 
     id: Mapped[sa.UUID] = sa.Column(primary_key=True)

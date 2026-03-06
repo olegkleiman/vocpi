@@ -5,7 +5,7 @@ from sqlalchemy import select
 from fastapi import Depends, HTTPException
 
 from ....router import router
-from ....models import TerminalConfiguration, OCPILocation, EVSE
+from ....models import TerminalConfiguration, OCPILocation, EVSEModel
 from ....database import get_db
 
 logger = logging.getLogger(__name__)
@@ -19,7 +19,7 @@ async def app_config(sn: str,
         stmt = (
             select(TerminalConfiguration)
             .join(OCPILocation, TerminalConfiguration.location_id == OCPILocation.id)
-            .join(EVSE, TerminalConfiguration.evse_id == EVSE.id)  
+            .join(EVSEModel, TerminalConfiguration.evse_id == EVSEModel.id)  
             .where(TerminalConfiguration.serial_number == sn)
         )
 

@@ -3,7 +3,7 @@ from sqlalchemy import select, delete
 from aiocache import cached
 from aiocache.serializers import PickleSerializer
 
-from ..models import SessionRequestModel,  OCPILocation, EVSE, OCPIPartnerModel, OCPISessionModel
+from ..models import SessionRequestModel,  OCPILocation, EVSEModel, OCPIPartnerModel, OCPISessionModel
 from ..exceptions import PartnerNotFoundError
 
 class SessionService:
@@ -113,9 +113,9 @@ class SessionService:
             stmt = (
                 select(OCPIPartnerModel)
                 .join(OCPILocation, OCPIPartnerModel.id == OCPILocation.partner_id)
-                .join(EVSE, OCPILocation.id== EVSE.location_id)  
+                .join(EVSEModel, OCPILocation.id== EVSEModel.location_id)  
                 .where(OCPILocation.location_id == location_id,
-                    EVSE.evse_id == evse_id)
+                    EVSEModel.evse_id == evse_id)
             )
 
             result = await self.db.execute(stmt)
