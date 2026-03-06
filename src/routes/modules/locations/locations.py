@@ -5,6 +5,7 @@ import os
 import sys
 import httpx
 import json
+from datetime import datetime
 from ....router import router
 
 from fastapi import Depends, Request, HTTPException
@@ -14,6 +15,8 @@ from ....database import get_db, get_partner, SessionLocal
 from ....exceptions import PartnerNotFoundError
 
 logger = logging.getLogger(__name__)
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+logger.setLevel(LOG_LEVEL)
 console_handler = logging.StreamHandler(sys.stdout)
 logger.addHandler(console_handler)
 
@@ -80,10 +83,13 @@ async def location_updates(request: Request,
                             "data" :json.dumps(jsonable_encoder(location_data)),
                         }
                     else: 
-                        logger.debug(f"Pulled location data is the same {location_id}:{evse_id} , skipping")
+                        logger.debug(f"{datetime.now()} Pulled location data is the same for {location_id}:{evse_id} , skipping")
                         
+                except asyncio.TimeoutError:
+                    # Send a 'heartbeat' comment if no message arrived
+                    yield ": heartbeat\n\n"                        
                 except Exception as e:
-                    logger.error(f"Error in SSE loop for {location_id}:{evse_id}: {e}")
+                    logger.error(f"Error in SSE locationloop for {location_id}:{evse_id}: {e}")
                     yield {
                         "event": "error",
                         "data": json.dumps({"error": str(e)})

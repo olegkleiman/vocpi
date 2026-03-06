@@ -29,7 +29,7 @@ async def end_session(payload: EndSessionPayload,
         stop_payload = StopSessionPayload(session_id=session_id)
         response: CommandResponseWrapper = await stop_session(payload = stop_payload, session_service = session_service)
         if response.data.result != CommandResponseType.ACCEPTED:
-            raise HTTPException(status_code=404, detail="Session not found")
+            raise HTTPException(status_code=404, detail=f"CPO: {response.data.result}")
         return response
     except HTTPException:
         # Re-raise HTTPExceptions so FastAPI can handle them (404, 400, etc.)

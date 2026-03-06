@@ -20,8 +20,15 @@ class OCPIPubSub:
                 del self._topics[topic_id]
 
     async def publish(self, topic_id: str, message: dict):
-        """Sends a message to EVERYONE listening to this specific topic_id."""
-        if topic_id in self._topics:
-            # We send to all queues associated with this topic
-            for queue in self._topics[topic_id]:
-                await queue.put_nowait(message)
+        if topic_id not in self._topics:
+            return
+
+        # We iterate over a copy to prevent "Set changed size during iteration" errors
+        # if someone unsubscribes while we are publishing.
+        for queue in list(self._topics[topic_id]):
+            try:
+                queue.put_nowait(message) 
+            except asyncio.QueueFull:
+                # If a client is too slow, we drop the message for them
+                # or you could unsubscribe them automatically here.
+                pass

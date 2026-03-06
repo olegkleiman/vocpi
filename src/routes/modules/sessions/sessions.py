@@ -1,3 +1,4 @@
+import logging
 from ....router import router
 from pydantic import BaseModel
 from typing import Optional
@@ -12,8 +13,6 @@ import json
 from collections import defaultdict
 import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import relationship, sessionmaker, DeclarativeBase, selectinload, Mapped, mapped_column
-from sqlalchemy import select, Table, MetaData, Column, String, DateTime, Boolean
 
 import sqlalchemy as sa
 
@@ -21,6 +20,12 @@ from ....database import get_db
 from ....models import Token, OCPIPartnerModel, TokenAuthorization, OCPISessionModel, OCPISessionsUpdatesModel
 
 from ....dependencies import get_pubsub, get_session_service
+
+logger = logging.getLogger(__name__)
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+logger.setLevel(LOG_LEVEL)
+console_handler = logging.StreamHandler(sys.stdout)
+logger.addHandler(console_handler)
 
 class OCPISession(BaseModel):
     id: str = str(uuid.uuid4())
@@ -65,18 +70,30 @@ async def session_updates(request: Request,
 
         while True:
 
-            if await request.is_disconnected():
-                print(f"Session {session_request_id} disconnected")
-                await pubsub.unsubscribe(session_request_id, queue) 
-                break
+            try:
+                
+                if await request.is_disconnected():
+                    print(f"Session {session_request_id} disconnected")
+                    await pubsub.unsubscribe(session_request_id, queue) 
+                    break
 
-            # Every client is waiting on the SAME queue
-            session_data = await queue.get()
-            yield {
-                "event": "update", # SSE usually needs an event name
-                "id": str(uuid.uuid4()), # Unique ID for each event
-                "data" :json.dumps(jsonable_encoder(session_data)),
-            }
+                # Every client is waiting on the SAME queue
+                session_data = await queue.get()
+                yield {
+                    "event": "update", # SSE usually needs an event name
+                    "id": str(uuid.uuid4()), # Unique ID for each event
+                    "data" :json.dumps(jsonable_encoder(session_data)),
+                }
+
+            except asyncio.TimeoutError:
+                # Send a 'heartbeat' comment if no message arrived
+                yield ": heartbeat\n\n"
+            except Exception as e:
+                logger.error(f"Error in SSE locationloop for session '{session_request_id}': {e}")
+                yield {
+                    "event": "error",
+                    "data": json.dumps({"error": str(e)})
+                }                  
 
     return EventSourceResponse(event_generator())
 

@@ -23,11 +23,12 @@
             "args": [
                 "src.main:app",
                 "--reload",
-                "--host",
-                "0.0.0.0",
-                "--port",
-                "8000"
+                "--host", "0.0.0.0",
+                "--port", "8000"
             ],
+            "env": {
+                "LOG_LEVEL": "DEBUG"  // This is where you control it now
+            },
             "jinja": true,
             "justMyCode": true
         }
