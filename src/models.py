@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Mapped, mapped_column, relationship, DeclarativeBase
-from sqlalchemy import String, Column, DateTime, Boolean, UUID, Text
+from sqlalchemy import String, Column, DateTime, Boolean, UUID, Text, ForeignKey, JSON, Integer
 from datetime import datetime
 from typing import Optional, List
 
@@ -56,7 +56,7 @@ class TargetLocation(BaseModel):
     name: str
     address: str
     city: str
-    currency: str = "USD"
+    currency: str
     connectors: List[TargetConnector]
 
 class CPOConnector(BaseModel):
@@ -76,6 +76,9 @@ class LocationData(BaseModel):
     city: str
     address: str
     evses: List[EVSE]
+
+# class LocationDataResponse(LocationData):
+#     currency: str
 
 class CPOLocationResponse(BaseModel):
     data: LocationData
@@ -199,3 +202,34 @@ class OCPISessionsUpdatesModel(Base):
         DateTime(timezone=True),
         server_default=func.now()
     )
+
+class TariffModel(Base):
+    __tablename__ = "ocpi_tariffs"
+
+    # Internal DB ID
+    id: Mapped[sa.UUID] = sa.Column(primary_key=True, default=uuid.uuid4)
+    # The actual OCPI ID (e.g., "381_8") - mark as unique for indexing
+    tariff_id: Mapped[str] = sa.Column(sa.String, unique=True, nullable=False, index=True)
+    currency = Column(String(3), nullable=False)
+
+    elements = relationship("TariffElementModel", back_populates="tariff", cascade="all, delete-orphan")
+
+class TariffElementModel(Base):
+    __tablename__ = "ocpi_tariff_elements"
+
+    id: Mapped[sa.UUID] = sa.Column(primary_key=True, default=uuid.uuid4)
+    tariff_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("ocpi_tariffs.tariff_id", ondelete="CASCADE"), 
+        nullable=False
+    )
+    restrictions = Column(JSON, nullable=True)
+    price_components = Column(JSON, nullable=True)
+
+    tariff = relationship("TariffModel", back_populates="elements")
+
+# class PriceComponent(Base):
+#     __tablename__ = "ocpi_price_components"
+
+#     id: Mapped[sa.UUID] = sa.Column(primary_key=True)
+#     element_id = Column(Integer, ForeignKey("ocpi_tariff_elements.id"))
+

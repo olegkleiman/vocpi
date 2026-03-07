@@ -88,3 +88,6 @@ async def get_partner(db,
 
         partner_object = partner_row[0]
         return partner_object.base_url, partner_object.token, partner_object.version
+
+async def save_tariff():
+    pass

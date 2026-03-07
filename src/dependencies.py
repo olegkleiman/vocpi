@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .database import get_db
 from .app_services.session_service import SessionService
 from .app_services.location_service import LocationService
+from .app_services.tariff_service import TariffService
 from .pubsub import OCPIPubSub
 
 pubsub_manager = OCPIPubSub()
@@ -17,3 +18,6 @@ async def get_session_service(db: AsyncSession = Depends(get_db)) -> SessionServ
 
 async def get_location_service(db: AsyncSession = Depends(get_db)) -> LocationService:
     return LocationService(db)
+
+async def get_tariff_service(db: AsyncSession = Depends(get_db)) -> TariffService:
+    return TariffService(db)    

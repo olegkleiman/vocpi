@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import ValidationError
+from .tariff_service import TariffService
 import httpx
 import logging
 
@@ -13,6 +14,7 @@ class LocationService:
         self.db = db
 
     async def get_location_details(self, 
+                                   tariff_service: TariffService,
                                    location_id: str, 
                                    evse_id: str):
         async with httpx.AsyncClient() as client:
@@ -30,29 +32,35 @@ class LocationService:
             try:
                 cpo_resp = CPOLocationResponse.model_validate(response.json())
                 loc_data = cpo_resp.data
+                currency = None
 
                 target_connectors = []
                 for evse in loc_data.evses:
                     for conn in evse.connectors:
                         tarif_id = conn.tariff_id
+                        
+                        tariff = await tariff_service.get_tariff(location_id, evse_id, tarif_id)
+                        if tariff:
+                            currency = tariff.currency
+ 
                         new_conn = TargetConnector(
                                         name=f"Connector {conn.id}", 
                                         type=conn.power_type,
                                         standard=conn.standard,
                                         status=evse.status  # Inherited from parent EVSE
-                    )
-                target_connectors.append(new_conn)
+                        )
+                        target_connectors.append(new_conn)
 
                 target_location = TargetLocation(
                     name=loc_data.name,
                     address=loc_data.address,
-                    city=loc_data.city,
-                    connectors=target_connectors                    
+                    city = loc_data.city,
+                    currency = currency,
+                    connectors = target_connectors                    
                 )
                 return target_location.model_dump()
             
             except ValidationError as e:
-                logger.error(f"API Structure changed! Details: {e.json()}")
-                # Fallback logic or notification for your team
+                logger.error(f"Location Service Exception. Details: {e.json()}")
 
             return response.json()

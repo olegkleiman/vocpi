@@ -13,7 +13,7 @@ from fastapi.encoders import jsonable_encoder
 from sse_starlette.sse import EventSourceResponse
 
 from ....exceptions import PartnerNotFoundError
-from ....dependencies import get_location_service
+from ....dependencies import get_location_service, get_tariff_service
 
 logger = logging.getLogger(__name__)
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -38,7 +38,8 @@ def has_location_changed(new_data: dict, old_data: dict) -> bool:
 async def location_updates(request: Request, 
                            location_id: str,
                            evse_id: str,
-                           location_service = Depends(get_location_service)):
+                           location_service = Depends(get_location_service),
+                           tariff_service = Depends(get_tariff_service)):
         
     if not location_id or not evse_id:
         raise HTTPException(status_code=400, detail="location_id and evse_id are required")
@@ -62,7 +63,7 @@ async def location_updates(request: Request,
                     break
 
                 try:
-                    location_data = await location_service.get_location_details(location_id, evse_id)
+                    location_data = await location_service.get_location_details(tariff_service, location_id, evse_id)
 
                     # if has_location_changed(location_data, last_data):
                     #     last_data = location_data
