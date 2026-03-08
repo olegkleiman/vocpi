@@ -90,7 +90,7 @@ async def session_updates(request: Request,
                 # Send a 'heartbeat' comment if no message arrived
                 yield ": heartbeat\n\n"
             except Exception as e:
-                logger.error(f"Error in SSE locationloop for session '{session_request_id}': {e}")
+                logger.error(f"Error in SSE sessions loop for session '{session_request_id}': {e}")
                 yield {
                     "event": "error",
                     "data": json.dumps({"error": str(e)})

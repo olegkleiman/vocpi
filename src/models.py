@@ -77,13 +77,25 @@ class LocationData(BaseModel):
     address: str
     evses: List[EVSE]
 
-# class LocationDataResponse(LocationData):
-#     currency: str
 
 class CPOLocationResponse(BaseModel):
     data: LocationData
 
     
+class CDRResponse(BaseModel):
+    session_id: Optional[str] = None
+    cdr_id: str
+    currency: Optional[str] = None
+
+    total_energy_kwh: Optional[float] = None
+    total_cost: Optional[float] = None
+    duration: Optional[str] = None
+    
+    started_at: Optional[str] = None
+    ended_at: Optional[str] = None
+    
+    location: Optional[str] = None
+
 #== SqlAlchemy models
 
 class Base(DeclarativeBase):
@@ -227,9 +239,16 @@ class TariffElementModel(Base):
 
     tariff = relationship("TariffModel", back_populates="elements")
 
-# class PriceComponent(Base):
-#     __tablename__ = "ocpi_price_components"
+class CDRModel(Base):
+    __tablename__ = "ocpi_cdrs"
 
-#     id: Mapped[sa.UUID] = sa.Column(primary_key=True)
-#     element_id = Column(Integer, ForeignKey("ocpi_tariff_elements.id"))
+    id: Mapped[sa.UUID] = sa.Column(primary_key=True, default=uuid.uuid4)
+    session_request_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("sessions_requests.request_id", ondelete="CASCADE"), 
+        nullable=False
+    )
+    cdr_id: Mapped[str] = sa.Column(sa.String, unique=True, nullable=False, index=True)
+    cdr = Column(JSON, nullable=True)
+
+
 

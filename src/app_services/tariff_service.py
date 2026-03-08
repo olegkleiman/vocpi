@@ -32,7 +32,7 @@ class TariffService:
                          tariff_id: str) -> TariffModel:
         
         try:
-            tariff = self.get_existing_tariff(tariff_id)
+            tariff = await self.get_existing_tariff(tariff_id)
             if tariff:
                 return tariff
 
