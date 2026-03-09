@@ -1,1 +1,20 @@
-{}
+{
+    "python.analysis.extraPaths": [
+        "src"
+    ],
+    "python.analysis.autoSearchPaths": true,
+    // Pylance - important for F12
+    "python.languageServer": "Pylance",
+    "python.analysis.indexingEnabled": true,
+    "python.analysis.typeCheckingMode": "basic",
+    // Formatting
+    "editor.formatOnSave": true,
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.vscode-pylance"
+    },
+    // Testing
+    "python.testing.pytestEnabled": true,
+    "python.testing.pytestArgs": [
+        "tests"
+    ]
+}

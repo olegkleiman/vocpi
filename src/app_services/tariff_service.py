@@ -14,7 +14,7 @@ class TariffService:
         self.db = db
 
     async def get_existing_tariff(self, 
-                        tariff_id: str) -> bool:
+                        tariff_id: str) -> TariffModel | None:
             # if passed tariff is already stored in Db => just return it
             stmt = (
                 select(TariffModel)
@@ -29,7 +29,7 @@ class TariffService:
     async def get_tariff(self,
                          location_id: str, 
                          evse_id: str,
-                         tariff_id: str) -> TariffModel:
+                         tariff_id: str) -> TariffModel | None:
         
         try:
             tariff = await self.get_existing_tariff(tariff_id)

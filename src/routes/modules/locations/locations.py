@@ -21,7 +21,7 @@ logger.setLevel(LOG_LEVEL)
 console_handler = logging.StreamHandler(sys.stdout)
 logger.addHandler(console_handler)
 
-def has_location_changed(new_data: dict, old_data: dict) -> bool:
+def has_location_changed(new_data: dict, old_data: dict | None) -> bool:
     if old_data is None:
         return True
 

@@ -3,7 +3,7 @@ import sys
 from ....router import router
 from pydantic import BaseModel
 from typing import Optional
-from fastapi import Depends, Request, WebSocket, WebSocketDisconnect
+from fastapi import Depends, Request, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.encoders import jsonable_encoder
 from sse_starlette.sse import EventSourceResponse
 from enum import Enum
@@ -15,7 +15,8 @@ from collections import defaultdict
 import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
-import sqlalchemy as sa
+# import sqlalchemy as sa
+from sqlalchemy import select
 
 from ....database import get_db
 from ....models import OCPISessionModel, OCPISessionsUpdatesModel
@@ -118,8 +119,8 @@ async def create_session(
         id = str(uuid.uuid4()), 
         session_id = session.id,
         # start_date_time = now,
-        kwh = session.kwh,
-        total_cost = session.total_cost,
+        # kwh = session.kwh,
+        # total_cost = session.total_cost,
         auth_id = session.authorization_reference or "unknown",
         auth_method="AUTH_REQUEST",
         location_id = session.location_id or "unknown",
@@ -137,7 +138,7 @@ async def create_session(
     db.add(sessionModel)
     await db.commit()
 
-    return SessionResponse(id=sessionModel.id, status=SessionStatus.ACTIVE)
+    return SessionResponse(id=str(sessionModel.id), status=SessionStatus.ACTIVE)
 
 @router.put("/sessions/{session_id}", tags=["Sessions"],
             description="CPO notifies the eMSP that a Session has updated.")
@@ -169,11 +170,14 @@ async def update_session(
     return SessionResponse(id=session_id, 
                            status=SessionStatus.ACTIVE)    
 
-@router.get("/sessions/{session_id}", tags=["Sessions"],
+@router.get("/sessions/{session_request_id}", tags=["Sessions"],
             description="Returns the details of the session.")
 async def get_session(
-    session_id: str,
+    session_request_id: str,
+    session_service = Depends(get_session_service),
     db: AsyncSession = Depends(get_db)) -> SessionDetailsResponse:
+
+    session_id = await session_service.get_session_id(session_request_id)
 
     # SELECT * FROM public.ocpi_sessions s
     # JOIN ocpi_sessions_updates u
@@ -191,10 +195,11 @@ async def get_session(
         .limit(1)
     )
     result = await db.execute(stmt)
-    session: OCPISessionModel = result.scalar_one_or_none()
+    # session: OCPISessionsUpdatesModel = result.scalar_one_or_none()
+    session = result.scalar_one_or_none()
  
     if not session:
-        raise HTTPException(status_code=404, detail=f"Session with id {session_id} not found")
+        raise HTTPException(status_code=404, detail=f"Session with request id '{session_request_id}' not found")
 
     diff = datetime.now(timezone.utc) - session.updated_at
     total_seconds = int(diff.total_seconds())
@@ -202,8 +207,8 @@ async def get_session(
     minutes = (total_seconds % 3600) // 60
 
     return SessionDetailsResponse(
-        id=session_id, 
-        status = session.status,
+        id=session.session_id, 
+        status = SessionStatus(session.status),
         delivered_kwh = session.kwh,
         total_cost = f"{session.total_cost}", 
         duration = f"{hours:02}:{minutes:02}"

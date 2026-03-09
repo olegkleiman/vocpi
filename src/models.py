@@ -105,28 +105,28 @@ class TerminalConfiguration(Base):
     __tablename__ = "ocpi_terminals"
         
     # Primary key using UUID
-    id: Mapped[sa.UUID] = sa.Column(primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(sa.UUID, primary_key=True)
 
     serial_number: Mapped[str] = mapped_column(String)
-    location_id = sa.Column(sa.UUID, sa.ForeignKey("ocpi_locations.id"), nullable=False)
-    evse_id = sa.Column(sa.UUID, sa.ForeignKey("ocpi_evse.id"), nullable=False)
-    terminal_id = mapped_column(String)
-    user_name = mapped_column(String)
-    user_password = mapped_column(String)
+    location_id: Mapped[uuid.UUID] = mapped_column(sa.ForeignKey("ocpi_locations.id"))
+    evse_id: Mapped[uuid.UUID] = mapped_column(sa.ForeignKey("ocpi_evses.id"))
+    terminal_id: Mapped[str] = mapped_column(String)
+    user_name: Mapped[str] = mapped_column(String)
+    user_password: Mapped[str] = mapped_column(String)
 
 class OCPILocation(Base):
     __tablename__ = "ocpi_locations"
 
-    id: Mapped[sa.UUID] = sa.Column(primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(sa.UUID, primary_key=True)
     location_id: Mapped[str] = mapped_column(String, unique=True)
-    partner_id = sa.Column(sa.UUID, sa.ForeignKey("ocpi_partners.id"), nullable=False)
+    partner_id: Mapped[uuid.UUID] = mapped_column(sa.ForeignKey("ocpi_partners.id"))
     description: Mapped[str] = mapped_column(String)
     address: Mapped[str] = mapped_column(String)
 
 class EVSEModel(Base):
     __tablename__ = "ocpi_evses"
 
-    id: Mapped[sa.UUID] = sa.Column(primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(sa.UUID, primary_key=True)
     evse_id: Mapped[str] = mapped_column(String, unique=True)
     location_id: Mapped[str] = mapped_column(String)
     description: Mapped[str] = mapped_column(String)
@@ -134,7 +134,7 @@ class EVSEModel(Base):
 class OCPIPartnerModel(Base):
     __tablename__ = "ocpi_partners"
     
-    id: Mapped[sa.UUID] = sa.Column(primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(sa.UUID, primary_key=True)
     country_code: Mapped[str] = mapped_column(String(2))
     party_id: Mapped[str] = mapped_column(String(3))
     role: Mapped[str] = mapped_column(String(10))
@@ -146,31 +146,31 @@ class OCPIPartnerModel(Base):
 class Token(Base):
     __tablename__ = "ocpi_tokens"
 
-    uid: Mapped[sa.UUID] = sa.Column(primary_key=True)
-    partner_id: Mapped[sa.UUID] = mapped_column(sa.ForeignKey("ocpi_partners.id"))
-    type = sa.Column(sa.String(20), nullable=False)
-    contract_id = sa.Column(sa.String, nullable=False)
-    issuer = sa.Column(sa.String, nullable=False)
-    valid = sa.Column(sa.Boolean, nullable=False)
-    whitelist = sa.Column(sa.String(20), nullable=False)
-    last_updated = Mapped[Optional[datetime]]
+    uid: Mapped[uuid.UUID] = mapped_column(sa.UUID, primary_key=True)
+    partner_id: Mapped[uuid.UUID] = mapped_column(sa.ForeignKey("ocpi_partners.id"))
+    type: Mapped[str] = mapped_column(sa.String(20))
+    contract_id: Mapped[str] = mapped_column(sa.String)
+    issuer: Mapped[str] = mapped_column(sa.String)
+    valid: Mapped[bool] = mapped_column(sa.Boolean)
+    whitelist: Mapped[str] = mapped_column(sa.String(20))
+    last_updated: Mapped[Optional[datetime]] = mapped_column()
     # partner: Mapped[list["Partner"]] = relationship(back_populates="tokens")
 
 class TokenAuthorization(Base):
     __tablename__ = "ocpi_token_authorizations"
 
-    id: Mapped[sa.UUID] = sa.Column(primary_key=True, server_default=sa.text("gen_random_uuid()"))
-    token_uid: Mapped[sa.UUID] = sa.Column(sa.ForeignKey("ocpi_tokens.uid"), nullable=False)
-    location_id: Mapped[Optional[str]] = sa.Column(sa.String, nullable=True)
-    evse_uid: Mapped[Optional[str]] = sa.Column(sa.String, nullable=True)
-    connector_id: Mapped[Optional[str]] = sa.Column(sa.String, nullable=True)
-    result: Mapped[str] = sa.Column(sa.String(20), nullable=False)
-    requested_at: Mapped[datetime] = sa.Column(DateTime(timezone=True), nullable=False)
+    id: Mapped[uuid.UUID] = mapped_column(sa.UUID, primary_key=True, server_default=sa.text("gen_random_uuid()"))
+    token_uid: Mapped[uuid.UUID] = mapped_column(sa.ForeignKey("ocpi_tokens.uid"))
+    location_id: Mapped[Optional[str]] = mapped_column(sa.String)
+    evse_uid: Mapped[Optional[str]] = mapped_column(sa.String)
+    connector_id: Mapped[Optional[str]] = mapped_column(sa.String)
+    result: Mapped[str] = mapped_column(sa.String(20))
+    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 class SessionRequestModel(Base):
     __tablename__ = "sessions_requests"
 
-    id: Mapped[sa.UUID] = sa.Column(primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(sa.UUID, primary_key=True, default=uuid.uuid4)
     session_id: Mapped[str] = mapped_column(Text, nullable=True)
     request_id: Mapped[str] = mapped_column(Text, nullable=True)
     location_id: Mapped[str] = mapped_column(Text, nullable=True)
@@ -180,19 +180,19 @@ class SessionRequestModel(Base):
 class OCPISessionModel(Base):    
     __tablename__ = "ocpi_sessions"
 
-    id: Mapped[sa.UUID] = sa.Column(primary_key=True)
-    session_id: Mapped[str] = sa.Column(sa.String, nullable=False)
-    auth_id: Mapped[str] = sa.Column(sa.String, nullable=False)
-    auth_method: Mapped[str] = sa.Column(sa.String(20), nullable=False)
-    status: Mapped[str] = sa.Column(sa.String(20), nullable=False)
-    party_id: Mapped[str] = sa.Column(sa.String(3), nullable=False)
+    id: Mapped[uuid.UUID] = mapped_column(sa.UUID, primary_key=True)
+    session_id: Mapped[str] = mapped_column(sa.String)
+    auth_id: Mapped[str] = mapped_column(sa.String)
+    auth_method: Mapped[str] = mapped_column(sa.String(20))
+    status: Mapped[str] = mapped_column(sa.String(20))
+    party_id: Mapped[str] = mapped_column(sa.String(3))
 
-    total_cost: Mapped[float] = sa.Column(sa.DECIMAL, nullable=False) # In OCPI prices can have more than 2 decimals
-    kwh: Mapped[float] = sa.Column(sa.Numeric(10, 3), nullable=False)
-    location_id: Mapped[str] = sa.Column(sa.String, nullable=False)
-    evse_uid: Mapped[str] = sa.Column(sa.String, nullable=False)
-    connector_id: Mapped[str] = sa.Column(sa.String, nullable=False)
-    currency: Mapped[str] = sa.Column(sa.String(3), nullable=False)
+    # total_cost: Mapped[float] = sa.Column(sa.DECIMAL, nullable=False) # In OCPI prices can have more than 2 decimals
+    # kwh: Mapped[float] = sa.Column(sa.Numeric(10, 3), nullable=False)
+    location_id: Mapped[str] = mapped_column(sa.String)
+    evse_uid: Mapped[str] = mapped_column(sa.String)
+    connector_id: Mapped[str] = mapped_column(sa.String)
+    currency: Mapped[str] = mapped_column(sa.String(3))
     # start_date_time: Mapped[datetime] = sa.Column(DateTime(timezone=True), nullable=False)
     # end_date_time: Mapped[Optional[datetime]] = sa.Column(DateTime(timezone=True), nullable=True)
     last_updated: Mapped[datetime] = mapped_column(
@@ -204,11 +204,11 @@ class OCPISessionModel(Base):
 class OCPISessionsUpdatesModel(Base):
     __tablename__ = "ocpi_sessions_updates"
 
-    id: Mapped[sa.UUID] = sa.Column(primary_key=True)
-    session_id: Mapped[str] = sa.Column(sa.String, nullable=False)
-    kwh: Mapped[float] = sa.Column(sa.Numeric(10, 3), nullable=False)
-    total_cost: Mapped[float] = sa.Column(sa.DECIMAL, nullable=False)
-    status: Mapped[str] = sa.Column(sa.String(20), nullable=False)
+    id: Mapped[uuid.UUID] = mapped_column(sa.UUID, primary_key=True)
+    session_id: Mapped[str] = mapped_column(sa.String)
+    kwh: Mapped[float] = mapped_column(sa.Numeric(10, 3))
+    total_cost: Mapped[float] = mapped_column(sa.DECIMAL)
+    status: Mapped[str] = mapped_column(sa.String(20))
     updated_at: Mapped[datetime] = mapped_column(
         "updated_at",
         DateTime(timezone=True),
@@ -219,36 +219,33 @@ class TariffModel(Base):
     __tablename__ = "ocpi_tariffs"
 
     # Internal DB ID
-    id: Mapped[sa.UUID] = sa.Column(primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(sa.UUID, primary_key=True, default=uuid.uuid4)
     # The actual OCPI ID (e.g., "381_8") - mark as unique for indexing
-    tariff_id: Mapped[str] = sa.Column(sa.String, unique=True, nullable=False, index=True)
-    currency = Column(String(3), nullable=False)
+    tariff_id: Mapped[str] = mapped_column(sa.String, unique=True, index=True)
+    currency: Mapped[str] = mapped_column(String(3))
 
     elements = relationship("TariffElementModel", back_populates="tariff", cascade="all, delete-orphan")
 
 class TariffElementModel(Base):
     __tablename__ = "ocpi_tariff_elements"
 
-    id: Mapped[sa.UUID] = sa.Column(primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(sa.UUID, primary_key=True, default=uuid.uuid4)
     tariff_id: Mapped[str] = mapped_column(
         sa.ForeignKey("ocpi_tariffs.tariff_id", ondelete="CASCADE"), 
         nullable=False
     )
-    restrictions = Column(JSON, nullable=True)
-    price_components = Column(JSON, nullable=True)
+    restrictions: Mapped[Optional[dict]] = mapped_column(JSON)
+    price_components: Mapped[Optional[dict]] = mapped_column(JSON)
 
     tariff = relationship("TariffModel", back_populates="elements")
 
 class CDRModel(Base):
     __tablename__ = "ocpi_cdrs"
 
-    id: Mapped[sa.UUID] = sa.Column(primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(sa.UUID, primary_key=True, default=uuid.uuid4)
     session_request_id: Mapped[str] = mapped_column(
         sa.ForeignKey("sessions_requests.request_id", ondelete="CASCADE"), 
         nullable=False
     )
-    cdr_id: Mapped[str] = sa.Column(sa.String, unique=True, nullable=False, index=True)
-    cdr = Column(JSON, nullable=True)
-
-
-
+    cdr_id: Mapped[str] = mapped_column(sa.String, unique=True, index=True)
+    cdr: Mapped[Optional[dict]] = mapped_column(JSON)

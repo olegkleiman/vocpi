@@ -32,16 +32,17 @@ class LocationService:
             try:
                 cpo_resp = CPOLocationResponse.model_validate(response.json())
                 loc_data = cpo_resp.data
-                currency = None
+                currency = ""
 
                 target_connectors = []
+                currency = ""
                 for evse in loc_data.evses:
                     for conn in evse.connectors:
                         tarif_id = conn.tariff_id
                         
                         tariff = await tariff_service.get_tariff(location_id, evse_id, tarif_id)
-                        if tariff:
-                            currency = tariff.currency
+                        if tariff and hasattr(tariff, 'currency'):
+                            currency = str(tariff.currency)
  
                         new_conn = TargetConnector(
                                         name=f"Connector {conn.id}", 
