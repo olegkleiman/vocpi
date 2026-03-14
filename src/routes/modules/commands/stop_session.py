@@ -22,13 +22,13 @@ async def end_session(payload: EndSessionPayload,
         session_id = await session_service.get_session_id(payload.session_id)
         if session_id is None:
             raise HTTPException(status_code=404, detail="Session not found")
-        
+   
+        stop_payload = StopSessionPayload(session_id=session_id)
+        response: OCPIResponse = await stop_session(payload = stop_payload, session_service = session_service)
+
         # Delete session from Db.
         # It is referenced by payload.session_id, but actually it is request_id as it was saved initially
         await session_service.delete_session(request_id = payload.session_id)
-
-        stop_payload = StopSessionPayload(session_id=session_id)
-        response: OCPIResponse = await stop_session(payload = stop_payload, session_service = session_service)
 
         return response
     except HTTPException:
@@ -49,7 +49,11 @@ async def stop_session(
         if not CALLBACK_BASE_URL:
              raise HTTPException(status_code=500, detail="Configuration error: CALLBACK_BASE_URL not set")
 
-        partner_data = await session_service.get_partner_from_session_id(payload.session_id)
+        location_id, evse_id = await session_service.get_location_from_session_id(payload.session_id)
+        partner_data = await session_service.get_partner(location_id, evse_id)
+        if not partner_data:
+            raise HTTPException(status_code=404, detail="Couldn't find partner for session")
+
         partner_base_url, token, version = partner_data
 
         headers = {

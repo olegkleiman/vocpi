@@ -162,22 +162,42 @@ class SessionService:
         result = await self.db.execute(stmt)
         await self.db.commit()
 
-    async def get_partner_from_session_id(self,
+    # async def get_partner_from_session_id(self,
+    #                                       session_id:str):
+    #     stmt = (
+    #         select(
+    #             OCPIPartnerModel.base_url, 
+    #             OCPIPartnerModel.token, 
+    #             OCPIPartnerModel.version
+    #         )
+    #         # Start from Sessions, join Partners
+    #         .select_from(DbSessionModel) 
+    #         .join(OCPIPartnerModel, DbSessionModel.party_id == OCPIPartnerModel.party_id)
+    #         .where(DbSessionModel.session_id == session_id)
+    #     )
+    #     result = await self.db.execute(stmt)
+    #     partner_data = result.first()
+    #     return partner_data
+
+    async def get_location_from_session_id(self,
                                           session_id:str):
-        stmt = (
-            select(
-                OCPIPartnerModel.base_url, 
-                OCPIPartnerModel.token, 
-                OCPIPartnerModel.version
-            )
-            # Start from Sessions, join Partners
-            .select_from(DbSessionModel) 
-            .join(OCPIPartnerModel, DbSessionModel.party_id == OCPIPartnerModel.party_id)
-            .where(DbSessionModel.session_id == session_id)
+        
+        # SELECT s.location_id, s.evse_uid
+        # FROM public.ocpi_sessions s
+        # JOIN public.sessions_requests r
+        # ON s.session_id = r.session_id
+        # WHERE r.session_id = <session_id>
+            
+        stmt = (  
+             select(OCPILocation.location_id, EVSEModel.evse_id)
+             .select_from(DbSessionModel)
+             .join(DbSessionRequestModel, DbSessionModel.session_id == DbSessionRequestModel.session_id)
+             .where(DbSessionRequestModel.session_id == session_id)
         )
         result = await self.db.execute(stmt)
-        partner_data = result.first()
-        return partner_data
+        location_data = result.first()
+
+        return location_data           
 
     @cached(ttl=600, key="{location_id}:{evse_id}", serializer=PickleSerializer())
     async def get_partner(self,
