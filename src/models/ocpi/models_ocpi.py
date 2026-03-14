@@ -69,6 +69,28 @@ class OCPIDimensionType(str, Enum):
     PARKING_TIME    = "PARKING_TIME"
     TIME            = "TIME"
 
+class OCPICommandResponseType(str, Enum):
+    ACCEPTED = "ACCEPTED"
+    NOT_SUPPORTED = "NOT_SUPPORTED"
+    REJECTED = "REJECTED"
+    UNKNOWN_SESSION = "UNKNOWN_SESSION"
+
+class OCPIStatusCode(int, Enum):
+    # Success
+    SUCCESS                 = 1000
+    # Client errors
+    INVALID_PARAMETERS      = 2001
+    NOT_ENOUGH_INFO         = 2002
+    UNKNOWN_LOCATION        = 2003
+    UNKNOWN_TOKEN           = 2004
+    # Server errors
+    SERVER_ERROR            = 3000
+    UNABLE_TO_USE_CLIENT    = 3001
+
+class OCPICommandResponse(BaseModel):
+    result: OCPICommandResponseType
+    timeout: int = 30
+
 class SessionDetailsResponse(BaseModel):
     id: str
     status: SessionStatus
@@ -78,7 +100,7 @@ class SessionDetailsResponse(BaseModel):
 
 class OCPIResponse(BaseModel):
     data: Optional[Any] = None
-    status_code: int = 1000
+    status_code: OCPIStatusCode =  OCPIStatusCode.SUCCESS
     status_message: str = "Success"
     timestamp: str = Field(default_factory=utc_now)
 

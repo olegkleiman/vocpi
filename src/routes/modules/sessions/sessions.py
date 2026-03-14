@@ -105,7 +105,7 @@ async def create_session(
 
     except Exception as e:
         logging.error(f"Error in create_session: {e}")
-        raise HTTPException(status_code=500, detail={e})
+        raise HTTPException(status_code=500, detail=str(e))
 
     return OCPIResponse(
         data=None,
@@ -143,7 +143,7 @@ async def update_session(
 
     except Exception as e:
         logging.error(f"Error in update_session: {e}")
-        raise HTTPException(status_code=500, detail={e})
+        raise HTTPException(status_code=500, detail=str(e))
 
     return OCPIResponse(
         data=None,

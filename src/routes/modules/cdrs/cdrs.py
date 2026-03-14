@@ -20,7 +20,7 @@ from ....router import router, api_router
 from sqlalchemy.ext.asyncio import AsyncSession
 from ....database import get_db
 from ....models.pydantic.models import CDRResponse
-from ....models.ocpi.models_ocpi import OCPICDR, OCPIResponse
+from ....models.ocpi.models_ocpi import OCPICDR, OCPIResponse, OCPIStatusCode
 
 logger = logging.getLogger(__name__)
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -34,11 +34,21 @@ cdr_waiters: dict = {}
 
 @api_router.get("/cdrs/updates/{session_id}", tags=["Custom API"], response_model=CDRResponse)
 async def get_receipt(request: Request,
-                  session_id: str, # Actually, this is session_request_id
-                  timeout: int = 3,
+                  session_id: str, # Actually this is session_request_id
                   cdr_service = Depends(get_cdr_service),
                   db: AsyncSession = Depends(get_db)):
  
+    http_version = request.scope.get("http_version")
+    logging.debug(http_version)
+
+    keep_alive = request.headers.get("keep-alive")
+    if keep_alive:
+        # "timeout=5, max=1000" → 5
+        for part in keep_alive.split(","):
+            key, _, value = part.strip().partition("=")
+            if key.strip() == "timeout":
+                timeout = int(value)
+
     receipt = await cdr_service.get_cdr(session_id=session_id, db=db)
 
     if receipt:
@@ -85,7 +95,7 @@ async def receive_cdr(cdr: OCPICDR,
             event.set()
 
     response = OCPIResponse(
-        status_code=1000,
+        status_code = OCPIStatusCode.SUCCESS,
         status_message="OK",
         data=None,
         timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")

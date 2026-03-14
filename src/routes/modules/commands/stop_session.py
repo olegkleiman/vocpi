@@ -8,8 +8,8 @@ import os
 
 from ....router import router, api_router
 from ....dependencies import get_session_service
-from ....models.pydantic.models import CommandResponseType, StopSessionPayload, EndSessionPayload
-from ....models.ocpi.models_ocpi import OCPIResponse
+from ....models.pydantic.models import StopSessionPayload, EndSessionPayload
+from ....models.ocpi.models_ocpi import OCPIResponse, OCPIStatusCode, OCPICommandResponse, OCPICommandResponseType
 
 CALLBACK_BASE_URL = os.getenv("CALLBACK_BASE_URL")
 
@@ -21,14 +21,21 @@ async def end_session(payload: EndSessionPayload,
     try:
         session_id = await session_service.get_session_id(payload.session_id)
         if session_id is None:
-            raise HTTPException(status_code=404, detail="Session not found")
+            return  OCPIResponse(
+                status_code = OCPIStatusCode.SERVER_ERROR,
+                status_message = f"Session '{payload.session_id}' not started",
+                data = OCPICommandResponse(
+                     result = OCPICommandResponseType.UNKNOWN_SESSION,
+                     timeout=0
+                ).model_dump()
+            )
    
         stop_payload = StopSessionPayload(session_id=session_id)
         response: OCPIResponse = await stop_session(payload = stop_payload, session_service = session_service)
 
         # Delete session from Db.
         # It is referenced by payload.session_id, but actually it is request_id as it was saved initially
-        await session_service.delete_session(request_id = payload.session_id)
+        await session_service.delete_session_request(request_id = payload.session_id)
 
         return response
     except HTTPException:
@@ -78,5 +85,6 @@ async def stop_session(
         raise HTTPException(status_code=e.response.status_code, detail=f"Error from CPO API: {detail}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to send STOP_SESSION command: {e}")
+
 
     

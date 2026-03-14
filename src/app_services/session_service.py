@@ -89,9 +89,10 @@ class SessionService:
     ) -> str | None:
         smt = (
             select(DbSessionRequestModel.request_id)
-            .where(DbSessionRequestModel.location_id == location_id
-                   and DbSessionRequestModel.evse_id == evse_id
-                   and DbSessionRequestModel.connector_id == connector_id)
+            .where(DbSessionRequestModel.location_id == location_id)
+            .where( DbSessionRequestModel.evse_id == evse_id)
+            .where(DbSessionRequestModel.connector_id == connector_id)
+            .where(DbSessionRequestModel.is_active == True)
         )
         result = await self.db.execute(smt)
         request_id = result.scalar()
@@ -147,19 +148,22 @@ class SessionService:
                 location_id = location_id,
                 evse_id = evse_id,
                 connector_id = connector_id,
+                is_active = True
             )
 
             self.db.add(session_request)
             await self.db.commit()
             await self.db.refresh(session_request)
 
-    async def delete_session(self,
-                             request_id: str):
+    async def delete_session_request(self, request_id: str):
         stmt = (
-            delete(DbSessionRequestModel)
+            select(DbSessionRequestModel)
             .where(DbSessionRequestModel.request_id == request_id)
         )
         result = await self.db.execute(stmt)
+        record = result.scalar_one_or_none()
+        if record:
+            record.is_active = False
         await self.db.commit()
 
     # async def get_partner_from_session_id(self,
@@ -228,3 +232,4 @@ class SessionService:
 
             partner_object = partner_row[0]
             return partner_object.base_url, partner_object.token, partner_object.version              
+            

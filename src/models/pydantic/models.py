@@ -16,15 +16,6 @@ from datetime import datetime
 
 #== Pydantic models
 
-class CommandResponseType(str, Enum):
-    ACCEPTED = "ACCEPTED"
-    NOT_SUPPORTED = "NOT_SUPPORTED"
-    REJECTED = "REJECTED"
-    UNKNOWN_SESSION = "UNKNOWN_SESSION"
-
-class CommandResponse(BaseModel):
-    result: CommandResponseType
-
 class StartSessionPayload(BaseModel):
     location_id: Optional[str] = None
     evse_uid: Optional[str] = None

@@ -99,6 +99,7 @@ class DbSessionRequestModel(Base):
     location_id: Mapped[str] = mapped_column(Text, nullable=True)
     evse_id: Mapped[str] = mapped_column(Text, nullable=True)
     connector_id: Mapped[str] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 class DbSessionModel(Base):    
     __tablename__ = "ocpi_sessions"
