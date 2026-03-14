@@ -1,9 +1,18 @@
+"""
+src.app_services.tariff_service.py
+
+Project: WEV (OCPI+ Server)
+Author: Oleg Kleiman
+Date: Feb., 2026
+
+"""
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import httpx
 import logging
 
-from ..models import TariffModel, TariffElementModel
+from ..models.sqlalchemy.models import DbTariffModel, DbTariffElementModel
 from ..database import get_partner
 
 logger = logging.getLogger(__name__)
@@ -14,11 +23,11 @@ class TariffService:
         self.db = db
 
     async def get_existing_tariff(self, 
-                        tariff_id: str) -> TariffModel | None:
+                        tariff_id: str) -> DbTariffModel | None:
             # if passed tariff is already stored in Db => just return it
             stmt = (
-                select(TariffModel)
-                .where(TariffModel.tariff_id == tariff_id)
+                select(DbTariffModel)
+                .where(DbTariffModel.tariff_id == tariff_id)
             )
             result = await self.db.execute(stmt)
             tariff_row = result.first()
@@ -29,7 +38,7 @@ class TariffService:
     async def get_tariff(self,
                          location_id: str, 
                          evse_id: str,
-                         tariff_id: str) -> TariffModel | None:
+                         tariff_id: str) -> DbTariffModel | None:
         
         try:
             tariff = await self.get_existing_tariff(tariff_id)
@@ -59,13 +68,13 @@ class TariffService:
 
                 elements = []
                 for el in tariff_dict.get("elements", []):
-                    elements.append(TariffElementModel(
+                    elements.append(DbTariffElementModel(
                             restrictions=el.get("restrictions"),
                             price_components=el.get("price_components"),
                             tariff_id = tariff_dict["id"]                         
                     ))
 
-                tariff = TariffModel(
+                tariff = DbTariffModel(
                     tariff_id = tariff_dict["id"],
                     currency = tariff_dict["currency"],
                     elements = elements

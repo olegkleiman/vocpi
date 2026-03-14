@@ -1,3 +1,13 @@
+
+"""
+authorize.py
+
+Author: Oleg Kleiman
+Date: Feb, 2026
+
+"""
+
+
 from ....router import router
 from pydantic import BaseModel
 from typing import Optional
@@ -12,7 +22,7 @@ import uuid
 import logging
 
 from ....database import get_db
-from ....models import Token, TokenAuthorization, OCPIPartnerModel
+from ....models.sqlalchemy.models import TokenModel, TokenAuthorization, OCPIPartnerModel
 
 class TokenAuthorizePayload(BaseModel):
     location_id: Optional[str] = None
@@ -44,26 +54,17 @@ async def authorize_token(
     try:
         requested_at = datetime.now(timezone.utc)
 
-        # cache_key = f"ocpi:token:{token_uid}"
-        # if cache:
-        #     cached = await cache.get(cache_key)
-        #     if cached:
-        #         return TokenAuthorizeResponse(status=AuthorizationStatus.ALLOWED)
-
-        # fallback → DB
         stmt = (
-            select(Token)
-            .join(Token.partner)
+            select(TokenModel)
+            .join(OCPIPartnerModel, OCPIPartnerModel.id == TokenModel.partner_id)
             .where(
-                Token.uid == token_uid,
+                TokenModel.uid == token_uid,
                 OCPIPartnerModel.country_code == "IL",
             )
-            .options(selectinload(Token.partner))
+            # .options(selectinload(Token.partner))
         )
 
-        result = await db.execute(
-            stmt
-        )
+        result = await db.execute(stmt)
         token = result.scalar_one_or_none()
         
         status = AuthorizationStatus.BLOCKED 

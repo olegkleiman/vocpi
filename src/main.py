@@ -1,6 +1,10 @@
 from enum import Enum
 from fastapi import FastAPI
 import uvicorn
+from dotenv import load_dotenv
+
+# Load environment variables from .env file for local development
+load_dotenv()
 
 class VersionNumber(str, Enum):
     """

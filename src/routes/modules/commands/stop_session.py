@@ -8,7 +8,8 @@ import os
 
 from ....router import router, api_router
 from ....dependencies import get_session_service
-from ....models import CommandResponseWrapper, CommandResponseType, StopSessionPayload, EndSessionPayload
+from ....models.pydantic.models import CommandResponseType, StopSessionPayload, EndSessionPayload
+from ....models.ocpi.models_ocpi import OCPIResponse
 
 CALLBACK_BASE_URL = os.getenv("CALLBACK_BASE_URL")
 
@@ -27,9 +28,8 @@ async def end_session(payload: EndSessionPayload,
         await session_service.delete_session(request_id = payload.session_id)
 
         stop_payload = StopSessionPayload(session_id=session_id)
-        response: CommandResponseWrapper = await stop_session(payload = stop_payload, session_service = session_service)
-        if response.data.result != CommandResponseType.ACCEPTED:
-            raise HTTPException(status_code=404, detail=f"CPO: {response.data.result}")
+        response: OCPIResponse = await stop_session(payload = stop_payload, session_service = session_service)
+
         return response
     except HTTPException:
         # Re-raise HTTPExceptions so FastAPI can handle them (404, 400, etc.)
@@ -40,7 +40,7 @@ async def end_session(payload: EndSessionPayload,
 
 @router.post("/commands/stop_session", tags=["Commands"],
             description="Sends a STOP_SESSION command to the CPO.",
-            response_model=CommandResponseWrapper)
+            response_model=OCPIResponse)
 async def stop_session(
     payload: StopSessionPayload,
     session_service = Depends(get_session_service)):
@@ -66,7 +66,7 @@ async def stop_session(
             response = await client.post(url, headers=headers, json=command_payload, timeout=30.0)
             response.raise_for_status()
             json_response = response.json()
-            return CommandResponseWrapper.model_validate(json_response)
+            return OCPIResponse.model_validate(json_response)
 
     except httpx.HTTPStatusError as e:
         await e.response.aread()

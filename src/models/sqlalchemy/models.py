@@ -1,107 +1,28 @@
-from sqlalchemy.orm import Mapped, mapped_column, relationship, DeclarativeBase
-from sqlalchemy import String, Column, DateTime, Boolean, UUID, Text, ForeignKey, JSON, Integer
-from datetime import datetime
-from typing import Optional, List
 
-import uuid
-from enum import Enum
-import sqlalchemy as sa
-from sqlalchemy.sql import func
+"""
+.models.sqlalchemy..py
 
-from pydantic import BaseModel, Field, ConfigDict, AliasPath
-from datetime import datetime
+Author: Oleg Kleiman
+Date: Feb, 2026
 
-#== Pydantic models
-
-class CommandResponseType(str, Enum):
-    ACCEPTED = "ACCEPTED"
-    NOT_SUPPORTED = "NOT_SUPPORTED"
-    REJECTED = "REJECTED"
-    UNKNOWN_SESSION = "UNKNOWN_SESSION"
-
-class CommandResponse(BaseModel):
-    result: CommandResponseType
-
-class CommandResponseWrapper(BaseModel):
-    status_code: int
-    status_message: str
-    timestamp: str
-    data: Optional[CommandResponse] = None
-
-class StartSessionPayload(BaseModel):
-    location_id: Optional[str] = None
-    evse_uid: Optional[str] = None
-    connector_id: Optional[str] = None
-
-class StopSessionPayload(BaseModel):
-    session_id: str    
-
-class EndSessionPayload(BaseModel):
-    session_id: str
-
-class BeginSessionResponse(BaseModel):
-    session_id: str
-
-# == Location
-
-class TargetConnector(BaseModel):
-    name: str  # Map from Connector.id
-    type: str  # Map from Connector.power_type
-    standard: str
-    status: str  # Map from EVSE.status
-    price_per_kwh: float = 1.23 # Default as per your example
-    price_per_minute: float = 0.45
-
-class TargetLocation(BaseModel):
-    name: str
-    address: str
-    city: str
-    currency: str
-    connectors: List[TargetConnector]
-
-class CPOConnector(BaseModel):
-    id: str
-    standard: str
-    power_type: str
-    tariff_id: str
-
-
-class EVSE(BaseModel):
-    status: str
-    evse_id: str
-    connectors: List[CPOConnector]
-
-class LocationData(BaseModel):
-    name: str
-    city: str
-    address: str
-    evses: List[EVSE]
-
-
-class CPOLocationResponse(BaseModel):
-    data: LocationData
-
-    
-class CDRResponse(BaseModel):
-    session_id: Optional[str] = None
-    cdr_id: str
-    currency: Optional[str] = None
-
-    total_energy_kwh: Optional[float] = None
-    total_cost: Optional[float] = None
-    duration: Optional[str] = None
-    
-    started_at: Optional[str] = None
-    ended_at: Optional[str] = None
-    
-    location: Optional[str] = None
+"""
 
 #== SqlAlchemy models
+import uuid
+from datetime import datetime
+
+from sqlalchemy.orm import Mapped, mapped_column, relationship, DeclarativeBase
+from sqlalchemy import String, Column, DateTime, Boolean, UUID, Text, ForeignKey, JSON, Integer
+from sqlalchemy.dialects.postgresql import JSONB
+
+import sqlalchemy as sa
+from sqlalchemy.sql import func
+from typing import Optional
 
 class Base(DeclarativeBase):
     pass
 
-class TerminalConfiguration(Base):
+class TerminalConfigurationModel(Base):
     __tablename__ = "ocpi_terminals"
         
     # Primary key using UUID
@@ -141,9 +62,11 @@ class OCPIPartnerModel(Base):
     base_url: Mapped[str] = mapped_column(String)
     token: Mapped[str] = mapped_column(String)
     version: Mapped[str] = mapped_column(String)
+
+    tokens: Mapped[list["TokenModel"]] = relationship(back_populates="partner")
     
 
-class Token(Base):
+class TokenModel(Base):
     __tablename__ = "ocpi_tokens"
 
     uid: Mapped[uuid.UUID] = mapped_column(sa.UUID, primary_key=True)
@@ -154,7 +77,7 @@ class Token(Base):
     valid: Mapped[bool] = mapped_column(sa.Boolean)
     whitelist: Mapped[str] = mapped_column(sa.String(20))
     last_updated: Mapped[Optional[datetime]] = mapped_column()
-    # partner: Mapped[list["Partner"]] = relationship(back_populates="tokens")
+    partner: Mapped["OCPIPartnerModel"] = relationship(back_populates="tokens")
 
 class TokenAuthorization(Base):
     __tablename__ = "ocpi_token_authorizations"
@@ -167,7 +90,7 @@ class TokenAuthorization(Base):
     result: Mapped[str] = mapped_column(sa.String(20))
     requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
-class SessionRequestModel(Base):
+class DbSessionRequestModel(Base):
     __tablename__ = "sessions_requests"
 
     id: Mapped[uuid.UUID] = mapped_column(sa.UUID, primary_key=True, default=uuid.uuid4)
@@ -177,7 +100,7 @@ class SessionRequestModel(Base):
     evse_id: Mapped[str] = mapped_column(Text, nullable=True)
     connector_id: Mapped[str] = mapped_column(Text, nullable=True)
 
-class OCPISessionModel(Base):    
+class DbSessionModel(Base):    
     __tablename__ = "ocpi_sessions"
 
     id: Mapped[uuid.UUID] = mapped_column(sa.UUID, primary_key=True)
@@ -201,13 +124,13 @@ class OCPISessionModel(Base):
         server_default=func.now()
    )
 
-class OCPISessionsUpdatesModel(Base):
+class DbSessionsUpdatesModel(Base):
     __tablename__ = "ocpi_sessions_updates"
 
     id: Mapped[uuid.UUID] = mapped_column(sa.UUID, primary_key=True)
     session_id: Mapped[str] = mapped_column(sa.String)
     kwh: Mapped[float] = mapped_column(sa.Numeric(10, 3))
-    total_cost: Mapped[float] = mapped_column(sa.DECIMAL)
+    total_cost: Mapped[float] = mapped_column(sa.Numeric(20, 4))
     status: Mapped[str] = mapped_column(sa.String(20))
     updated_at: Mapped[datetime] = mapped_column(
         "updated_at",
@@ -215,7 +138,7 @@ class OCPISessionsUpdatesModel(Base):
         server_default=func.now()
     )
 
-class TariffModel(Base):
+class DbTariffModel(Base):
     __tablename__ = "ocpi_tariffs"
 
     # Internal DB ID
@@ -224,9 +147,14 @@ class TariffModel(Base):
     tariff_id: Mapped[str] = mapped_column(sa.String, unique=True, index=True)
     currency: Mapped[str] = mapped_column(String(3))
 
-    elements = relationship("TariffElementModel", back_populates="tariff", cascade="all, delete-orphan")
+    elements = relationship(
+                    "DbTariffElementModel", 
+                    back_populates="tariff", 
+                    cascade="all, delete-orphan",
+                    lazy="selectin" 
+                )
 
-class TariffElementModel(Base):
+class DbTariffElementModel(Base):
     __tablename__ = "ocpi_tariff_elements"
 
     id: Mapped[uuid.UUID] = mapped_column(sa.UUID, primary_key=True, default=uuid.uuid4)
@@ -237,15 +165,20 @@ class TariffElementModel(Base):
     restrictions: Mapped[Optional[dict]] = mapped_column(JSON)
     price_components: Mapped[Optional[dict]] = mapped_column(JSON)
 
-    tariff = relationship("TariffModel", back_populates="elements")
+    tariff = relationship(
+                    "DbTariffModel", 
+                    back_populates="elements",
+                    lazy="selectin"
+            )
 
 class CDRModel(Base):
     __tablename__ = "ocpi_cdrs"
 
     id: Mapped[uuid.UUID] = mapped_column(sa.UUID, primary_key=True, default=uuid.uuid4)
+    session_id: Mapped[str] = mapped_column(sa.String)
     session_request_id: Mapped[str] = mapped_column(
         sa.ForeignKey("sessions_requests.request_id", ondelete="CASCADE"), 
         nullable=False
     )
     cdr_id: Mapped[str] = mapped_column(sa.String, unique=True, index=True)
-    cdr: Mapped[Optional[dict]] = mapped_column(JSON)
+    cdr_json: Mapped[Optional[dict]] = mapped_column(JSONB)

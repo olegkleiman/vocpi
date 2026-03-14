@@ -1,3 +1,11 @@
+
+"""
+routes.config.config.py
+
+Author: Oleg Kleiman
+Date: Feb, 2026
+
+"""
 import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -5,7 +13,7 @@ from sqlalchemy import select
 from fastapi import Depends, HTTPException
 
 from ....router import router
-from ....models import TerminalConfiguration, OCPILocation, EVSEModel
+from ....models.sqlalchemy.models import TerminalConfigurationModel, OCPILocation, EVSEModel
 from ....database import get_db
 
 logger = logging.getLogger(__name__)
@@ -17,10 +25,10 @@ async def app_config(sn: str,
 
     try:
         stmt = (
-            select(TerminalConfiguration)
-            .join(OCPILocation, TerminalConfiguration.location_id == OCPILocation.id)
-            .join(EVSEModel, TerminalConfiguration.evse_id == EVSEModel.id)  
-            .where(TerminalConfiguration.serial_number == sn)
+            select(TerminalConfigurationModel)
+            .join(OCPILocation, TerminalConfigurationModel.location_id == OCPILocation.id)
+            .join(EVSEModel, TerminalConfigurationModel.evse_id == EVSEModel.id)  
+            .where(TerminalConfigurationModel.serial_number == sn)
         )
 
         result = await db.execute(stmt)

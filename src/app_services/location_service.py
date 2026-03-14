@@ -1,11 +1,21 @@
+"""
+src.app_services.location_service.py
+
+Author: Oleg Kleiman
+Date: Feb, 2026
+
+"""
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import ValidationError
 from .tariff_service import TariffService
 import httpx
 import logging
+from datetime import datetime, timezone
 
 from ..database import get_partner
-from ..models import CPOLocationResponse, TargetConnector, TargetLocation
+from ..models.pydantic.models import TargetConnector, TargetLocation
+from ..models.ocpi.models_ocpi import OCPIResponse, OCPILocation
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +27,11 @@ class LocationService:
                                    tariff_service: TariffService,
                                    location_id: str, 
                                    evse_id: str):
+        
+        partner_data = await get_partner(self.db, location_id, evse_id)
+        partner_base_url, token, version = partner_data
+
         async with httpx.AsyncClient() as client:
-            partner_data = await get_partner(self.db, location_id, evse_id)
-            partner_base_url, token, version = partner_data
 
             headers = {
                 "Authorization": f"Token {token}"
@@ -30,8 +42,8 @@ class LocationService:
             response.raise_for_status()
 
             try:
-                cpo_resp = CPOLocationResponse.model_validate(response.json())
-                loc_data = cpo_resp.data
+                cpo_resp = OCPIResponse.model_validate(response.json())
+                loc_data: OCPILocation = OCPILocation.model_validate(cpo_resp.data)
                 currency = ""
 
                 target_connectors = []
@@ -39,11 +51,23 @@ class LocationService:
                 for evse in loc_data.evses:
                     for conn in evse.connectors:
                         tarif_id = conn.tariff_id
-                        
-                        tariff = await tariff_service.get_tariff(location_id, evse_id, tarif_id)
-                        if tariff and hasattr(tariff, 'currency'):
+
+                        tariff = None
+                        if tarif_id:
+                            tariff = await tariff_service.get_tariff(
+                                location_id, evse_id, tarif_id
+                            )
+                        if not currency and tariff and hasattr(tariff, 'currency'):
                             currency = str(tariff.currency)
  
+                        # tariff_elements = tariff.elements
+
+                        today = datetime.now(timezone.utc).strftime("%A").upper()
+                        if today in ["SUNDAY", "MONDAY", "WEDNESDAY"]:
+                            print(f"{today} is in the list!")
+                        else:
+                            print(f"{today} is not in the list.")                        
+
                         new_conn = TargetConnector(
                                         name=f"Connector {conn.id}", 
                                         type=conn.power_type,
@@ -53,7 +77,7 @@ class LocationService:
                         target_connectors.append(new_conn)
 
                 target_location = TargetLocation(
-                    name=loc_data.name,
+                    name=loc_data.name or loc_data.address,
                     address=loc_data.address,
                     city = loc_data.city,
                     currency = currency,

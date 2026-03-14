@@ -1,3 +1,11 @@
+"""
+src.routes.modules.commands.start_session.py
+
+Project: WEV (OCPI+ Server)
+Author: Oleg Kleiman
+Date: Feb, 2026
+
+"""
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Depends, Request, HTTPException
 
@@ -10,7 +18,8 @@ import secrets
 
 from ....router import router, api_router
 from ....dependencies import get_session_service
-from ....models import CommandResponseWrapper, StartSessionPayload, BeginSessionResponse
+from ....models.pydantic.models import StartSessionPayload, BeginSessionResponse
+from ....models.ocpi.models_ocpi import OCPIResponse
 from ..tokens.token_payload import TokenPayload
 
 rfid_token_file_path = os.getenv("RFID_FAKE_TOKEN_FILE_PATH")
@@ -30,9 +39,9 @@ async def begin_session(payload: StartSessionPayload,
 
         request_id = await session_service.get_request_id(location_id, evse_id, connector_id)
         if not request_id:
-             random_req_id:int = secrets.token_hex(8)
+             random_req_id = secrets.token_hex(8)
              request_id = random_req_id
-             await session_service.save_session(random_req_id,
+             await session_service.save_session_request(random_req_id,
                                                 location_id = payload.location_id,
                                                 evse_id = payload.evse_uid,
                                                 connector_id = payload.connector_id)
@@ -48,12 +57,15 @@ async def begin_session(payload: StartSessionPayload,
 
 @router.post("/commands/start_session", tags=["Commands"],
             description="Sends a START_SESSION command to the CPO.",
-            response_model=CommandResponseWrapper)
+            response_model=OCPIResponse)
 async def start_session(
     payload: StartSessionPayload,
     session_service = Depends(get_session_service)):
 
     try:
+        if not rfid_token_file_path:
+            raise HTTPException(status_code=500, detail="Configuration error: RFID_FAKE_TOKEN_FILE_PATH not set")
+
         partner_data = await session_service.get_partner(payload.location_id, payload.evse_uid)
         partner_base_url, auth_token, version = partner_data
 
@@ -79,7 +91,7 @@ async def start_session(
         async with httpx.AsyncClient() as client:
             response = await client.post(url, headers=headers, json=command_payload, timeout=30.0)
             response.raise_for_status()
-            jsonResponse: CommandResponseWrapper = response.json()
+            jsonResponse: OCPIResponse = response.json()
 
             logger.debug(json.dumps(jsonResponse))
             return jsonResponse

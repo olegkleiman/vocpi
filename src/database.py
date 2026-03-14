@@ -8,21 +8,22 @@ from sqlalchemy import select
 from aiocache import cached
 from aiocache.serializers import PickleSerializer
 
-from .models import OCPILocation, EVSEModel, OCPIPartnerModel
+from .models.sqlalchemy.models import OCPILocation, EVSEModel, OCPIPartnerModel
 from .exceptions import PartnerNotFoundError
 
 raw_password = os.getenv("PG_PASSWORD")
+pg_username = os.getenv("PG_USERNAME", "postgres")
+pg_host = os.getenv("PG_HOST")
+pg_port = os.getenv("PG_PORT")
+pg_db = os.getenv("PG_DB")
+pg_username = os.getenv("PG_USERNAME")
+
+if not raw_password or not pg_username or not pg_host or not pg_port or not pg_db:
+    raise ValueError("One or more DB credentials are missing!")
+
 safe_password = urllib.parse.quote_plus(raw_password)
 pg_password = safe_password
 
-pg_username = os.getenv("PG_USERNAME", "postgres")
-
-pg_host = os.getenv("PG_HOST")
-pg_port = os.getenv("PG_PORT", "5432")
-pg_db = os.getenv("PG_DB", "postgres")
-
-if not pg_password or not pg_username:
-    raise ValueError("PG_PASSWORD and PG_USERNAME environment variables must be set")
 DATABASE_URL = f"postgresql+psycopg://{pg_username}:{pg_password}@{pg_host}:{pg_port}/{pg_db}"
 
 engine = create_async_engine(
@@ -40,7 +41,6 @@ engine = create_async_engine(
     }
 )
 SessionLocal = async_sessionmaker(bind=engine, expire_on_commit=False)
-
 
 async def get_db():
     max_retries = 3
