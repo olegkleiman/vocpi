@@ -9,7 +9,6 @@ CREATE TABLE IF NOT EXISTS public.ocpi_sessions
     currency character varying(3) COLLATE pg_catalog."default" NOT NULL,
     status character varying(20) COLLATE pg_catalog."default" NOT NULL,
     session_id text COLLATE pg_catalog."default",
-    party_id text COLLATE pg_catalog."default",
     created_at timestamp with time zone,
     CONSTRAINT ocpi_sessions_pkey PRIMARY KEY (id)
 )

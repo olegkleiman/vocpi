@@ -13,7 +13,7 @@ from sqlalchemy import select
 from fastapi import Depends, HTTPException
 
 from ....router import router
-from ....models.sqlalchemy.models import TerminalConfigurationModel, OCPILocation, EVSEModel
+from ....models.sqlalchemy.models import DbTerminalConfigurationModel, OCPILocation, EVSEModel
 from ....database import get_db
 
 logger = logging.getLogger(__name__)
@@ -25,10 +25,10 @@ async def app_config(sn: str,
 
     try:
         stmt = (
-            select(TerminalConfigurationModel)
-            .join(OCPILocation, TerminalConfigurationModel.location_id == OCPILocation.id)
-            .join(EVSEModel, TerminalConfigurationModel.evse_id == EVSEModel.id)  
-            .where(TerminalConfigurationModel.serial_number == sn)
+            select(DbTerminalConfigurationModel)
+            .join(OCPILocation, DbTerminalConfigurationModel.location_id == OCPILocation.id)
+            .join(EVSEModel, DbTerminalConfigurationModel.evse_id == EVSEModel.id)  
+            .where(DbTerminalConfigurationModel.serial_number == sn)
         )
 
         result = await db.execute(stmt)

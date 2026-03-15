@@ -53,7 +53,9 @@ async def begin_session(payload: StartSessionPayload,
         return { "session_id":  request_id }
 
     except Exception as e:
-        raise
+        msg = f"Failed to begin session: {e}"
+        logger.error(msg)
+        raise HTTPException(status_code=500, detail=msg)
 
 @router.post("/commands/start_session", tags=["Commands"],
             description="Sends a START_SESSION command to the CPO.",

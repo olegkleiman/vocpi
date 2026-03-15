@@ -50,7 +50,7 @@ async def location_updates(request: Request,
     except (ValueError, TypeError):
         delay = 3.0
 
-    logger.info(f"Client connected to location updates for {location_id}:{evse_id}")
+    logger.info(f"\t== Subscription to location updates for {location_id}:{evse_id}")
 
     async def event_generator():
         last_data = None

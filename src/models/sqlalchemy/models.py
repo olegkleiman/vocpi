@@ -22,7 +22,7 @@ from typing import Optional
 class Base(DeclarativeBase):
     pass
 
-class TerminalConfigurationModel(Base):
+class DbTerminalConfigurationModel(Base):
     __tablename__ = "ocpi_terminals"
         
     # Primary key using UUID
@@ -109,8 +109,6 @@ class DbSessionModel(Base):
     auth_id: Mapped[str] = mapped_column(sa.String)
     auth_method: Mapped[str] = mapped_column(sa.String(20))
     status: Mapped[str] = mapped_column(sa.String(20))
-    party_id: Mapped[str] = mapped_column(sa.String(3))
-
     # total_cost: Mapped[float] = sa.Column(sa.DECIMAL, nullable=False) # In OCPI prices can have more than 2 decimals
     # kwh: Mapped[float] = sa.Column(sa.Numeric(10, 3), nullable=False)
     location_id: Mapped[str] = mapped_column(sa.String)

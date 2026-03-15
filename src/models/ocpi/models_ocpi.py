@@ -18,9 +18,9 @@ def utc_now() -> str:
 
 class SessionStatus(str, Enum):
     ACTIVE = "ACTIVE"
-    COMPLETED = "COMPLETED",
-    INVALID = "INVALID",
-    PENDING = "PENDING",
+    COMPLETED = "COMPLETED"
+    INVALID = "INVALID"
+    PENDING = "PENDING"
     RESERVATION = "RESERVATION"
 
 class OCPIAuthMethod(str, Enum):

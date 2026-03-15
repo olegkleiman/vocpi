@@ -17,6 +17,7 @@ pg_host = os.getenv("PG_HOST")
 pg_port = os.getenv("PG_PORT")
 pg_db = os.getenv("PG_DB")
 pg_username = os.getenv("PG_USERNAME")
+pg_useSSL= os.getenv("PG_USE_SSL")
 
 if not raw_password or not pg_username or not pg_host or not pg_port or not pg_db:
     raise ValueError("One or more DB credentials are missing!")
@@ -33,11 +34,15 @@ engine = create_async_engine(
     pool_pre_ping=True, 
     pool_recycle=300,   # Close connections after 5 mins
     connect_args={
+        "connect_timeout": 2,
+        "gssencmode": "disable",  # Skips GSSAPI negotiation lag
+        "sslmode": "require", 
         "application_name": "vocpi_app",
         "keepalives": 1,
         "keepalives_idle": 60,
         "keepalives_interval": 10,
         "keepalives_count": 5,
+        "sslmode": pg_useSSL
     }
 )
 SessionLocal = async_sessionmaker(bind=engine, expire_on_commit=False)

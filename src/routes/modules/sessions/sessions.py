@@ -136,10 +136,10 @@ async def update_session(
             request_id = await session_service.get_request_id(location_id, evse_id, connector_id)
 
             session_id = session.id
-            sessionModel: SessionUpdate = await session_service.create_and_save_session_update(session, request_id)
+            session_update: SessionUpdate = await session_service.create_and_save_session_update(session, request_id)
 
             # Broadcast to anyone listening for this specific ID
-            await pubsub.publish(request_id, sessionModel)
+            await pubsub.publish(request_id, session_update)
 
     except Exception as e:
         logging.error(f"Error in update_session: {e}")
