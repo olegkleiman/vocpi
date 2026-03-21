@@ -18,6 +18,8 @@ logger.addHandler(console_handler)
 import uvicorn
 from dotenv import load_dotenv
 
+# from routes.modules import sessions, locations, commands, tokens
+
 # Load environment variables from .env file for local development
 load_dotenv()
 
@@ -35,6 +37,19 @@ class VersionNumber(str, Enum):
 
 OCPI_PREFIX: str = 'ocpi'
 
+def get_auth_token(request: Request) -> str | None:
+    auth_header = request.headers.get("Authorization")
+
+    if not auth_header:
+        return None
+    
+    parts = auth_header.split(" ")
+    if len(parts) != 2 or parts[0] != "Token":
+        return None
+    
+    return parts[1]
+
+
 class DatabaseTimeoutMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         try:
@@ -43,10 +58,7 @@ class DatabaseTimeoutMiddleware(BaseHTTPMiddleware):
             for key, value in request.headers.items():
                 logger.info(f"  {key}: {value}")
 
-            auth_header = request.headers["Authorization"]
-            if auth_header:
-                token = auth_header.split("Token")
-                logger.info(f"Token: {token}")
+            auth_header = get_auth_token(request)
 
             response = await call_next(request)
 
@@ -72,11 +84,15 @@ app = FastAPI(
 app.add_middleware(DatabaseTimeoutMiddleware)
 
 @app.exception_handler(Exception) #OperationalError)
-async def handle_operational_error(request: Request, 
-                                   exc: OperationalError):
-    pass
+async def handle_operational_error(request: Request, exc: Exception):
+    logger.error(f"Global exception handler caught: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal Server Error"}
+    )
 
 prefix = f"/{OCPI_PREFIX}/{VersionNumber.v_2_2_1.value}"
+
 app.include_router(router, prefix=prefix)
 app.include_router(api_router, prefix="/api", tags=["Custom API"])
 

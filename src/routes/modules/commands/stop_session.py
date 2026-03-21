@@ -1,15 +1,17 @@
 from typing import Optional
-from fastapi import Depends, Request, HTTPException, status
+from fastapi import Depends, Request, HTTPException, status, APIRouter
 from sqlalchemy.ext.asyncio import AsyncSession
 import httpx
 
 import http.client
 import os
 
-from ....router import router, api_router
 from ....dependencies import get_session_service
 from ....models.pydantic.models import StopSessionPayload, EndSessionPayload
 from ....models.ocpi.models_ocpi import OCPIResponse, OCPIStatusCode, OCPICommandResponse, OCPICommandResponseType
+
+router = APIRouter()
+api_router = APIRouter()
 
 CALLBACK_BASE_URL = os.getenv("CALLBACK_BASE_URL")
 
@@ -21,7 +23,7 @@ async def end_session(payload: EndSessionPayload,
     try:
         session_id = await session_service.get_session_id(payload.session_id)
         if session_id is None:
-            return  OCPIResponse(
+            return OCPIResponse(
                 status_code = OCPIStatusCode.SERVER_ERROR,
                 status_message = f"Session '{payload.session_id}' not started",
                 data = OCPICommandResponse(

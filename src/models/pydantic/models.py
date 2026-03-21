@@ -31,12 +31,14 @@ class BeginSessionResponse(BaseModel):
     session_id: str
 
 class TargetConnector(BaseModel):
-    name: str  # Map from Connector.id
+    id: str  # Map from Connector.id
     type: str  # Map from Connector.power_type
     standard: str
     status: str  # Map from EVSE.status
-    price_per_kwh: float = 1.23 # Default as per your example
-    price_per_minute: float = 0.45
+    price_per_kwh: float = 0.0
+    price_per_minute: float = 0.0
+    kwh : Optional[float] = 0.0
+    total_cost: Optional[float] = 0.0
 
 class TargetLocation(BaseModel):
     name: str
@@ -44,6 +46,7 @@ class TargetLocation(BaseModel):
     city: str
     currency: str
     connectors: List[TargetConnector]
+    timestamp: datetime = Field(default_factory=datetime.now)
 
 class SessionUpdate(BaseModel):
     session_id: str

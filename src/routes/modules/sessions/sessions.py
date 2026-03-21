@@ -9,10 +9,9 @@ Date: Feb, 2026
 
 import logging
 import sys
-from ....router import router
 from pydantic import BaseModel
 from typing import Optional
-from fastapi import Depends, Request, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, Request, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.encoders import jsonable_encoder
 from sse_starlette.sse import EventSourceResponse
 from enum import Enum
@@ -21,17 +20,19 @@ import uuid
 import os
 import json
 import asyncio
+import hashlib
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sqlalchemy import select
 
-from ....models.pydantic.models import SessionUpdate
-from ....models.ocpi.models_ocpi import OCPISession, SessionStatus, SessionDetailsResponse, OCPIAuthMethod, OCPIResponse
-from ....models.sqlalchemy.models import DbSessionModel, DbSessionsUpdatesModel
+from src.models.pydantic.models import SessionUpdate
+from src.models.ocpi.models_ocpi import OCPISession, SessionStatus, SessionDetailsResponse, OCPIAuthMethod, OCPIResponse
+from src.models.sqlalchemy.models import DbSessionModel, DbSessionsUpdatesModel
+from src.models.pydantic.models import TargetConnector, TargetLocation
 
-from ....database import get_db
+from src.database import get_db
 
-from ....dependencies import get_pubsub, get_session_service
+from src.dependencies import get_pubsub, get_session_service, get_locations_service, get_tariff_service
 
 logger = logging.getLogger(__name__)
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -39,7 +40,9 @@ logger.setLevel(LOG_LEVEL)
 console_handler = logging.StreamHandler(sys.stdout)
 logger.addHandler(console_handler)
 
-@router.get("/sessions/updates/{session_request_id}", tags=["Sessions"],
+router = APIRouter(prefix="/sessions", tags=["Sessions"])
+
+@router.get("/updates/{session_request_id}", tags=["Sessions"],
             description="SSE endpoint for real-time session updates.")
 async def session_updates(request: Request, 
                           session_request_id: str, 
@@ -78,7 +81,7 @@ async def session_updates(request: Request,
 
     return EventSourceResponse(event_generator())
 
-@router.post("/sessions", tags=["Sessions"],
+@router.post("/", tags=["Sessions"],
              response_model=None,
              description="CPO notifies the eMSP that a new Session has started.")
 async def create_session(
@@ -88,6 +91,8 @@ async def create_session(
         pubsub = Depends(get_pubsub)
     ) -> OCPIResponse:
 
+    # Note: Assuming session.location is not None and has at least one EVSE/Connector
+    # as per OCPI validation usually handled by Pydantic model
     location_id = session.location.id
     evse_id = session.location.evses[0].uid
     connector_id = session.location.evses[0].connectors[0].id
@@ -112,11 +117,13 @@ async def create_session(
         timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     )
 
-@router.put("/sessions/{session_id}", tags=["Sessions"],
+@router.put("/{session_id}", tags=["Sessions"],
             description="CPO notifies the eMSP that a Session has updated.")
 async def update_session(
         session: OCPISession,
         session_service = Depends(get_session_service),
+        location_service = Depends(get_locations_service),
+        tariff_service = Depends(get_tariff_service),
         db: AsyncSession = Depends(get_db),
         pubsub = Depends(get_pubsub)
     ) -> OCPIResponse:
@@ -138,8 +145,19 @@ async def update_session(
             session_id = session.id
             session_update: SessionUpdate = await session_service.create_and_save_session_update(session, request_id)
 
-            # Broadcast to anyone listening for this specific ID
+            # Broadcast to anyone listening for this specific session ID
             await pubsub.publish(request_id, session_update)
+
+            location = session.location
+            _current_location_id = f"{location_id}:{evse_id}"
+            current_location_hash = hashlib.sha256(_current_location_id.encode()).hexdigest()
+
+            location_model: TargetLocation = await location_service.location_data_to_model(location, 
+                                                                                           session, 
+                                                                                           tariff_service)
+            location_model.timestamp = session.last_updated
+
+            await pubsub.publish(current_location_hash, location_model)     
 
     except Exception as e:
         logging.error(f"Error in update_session: {e}")
@@ -151,7 +169,7 @@ async def update_session(
     )
     
 
-@router.get("/sessions/{session_request_id}", tags=["Sessions"],
+@router.get("/{session_request_id}", tags=["Sessions"],
             description="Returns the details of the session.")
 async def get_session(
     session_request_id: str,

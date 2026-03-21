@@ -10,12 +10,11 @@ import logging
 import os
 import sys
 from datetime import datetime, timezone
-from fastapi import Depends, Request, HTTPException
+from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy import select
 from typing import Optional
 
 logger = logging.getLogger(__name__)
-from ....router import router, api_router
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from ....database import get_db
@@ -29,6 +28,9 @@ console_handler = logging.StreamHandler(sys.stdout)
 logger.addHandler(console_handler)
 
 from ....dependencies import get_cdr_service, get_session_service
+
+router = APIRouter()
+api_router = APIRouter()
 
 cdr_waiters: dict = {}
 

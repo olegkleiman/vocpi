@@ -12,13 +12,20 @@ from fastapi import APIRouter
 router = APIRouter()
 api_router = APIRouter()
 
-from .routes.modules.tokens.authorize import authorize_token
-from .routes.modules.locations.locations import get_location
-from .routes.modules.sessions.sessions import create_session
-from .routes.modules.config.config import app_config
-from .routes.modules.commands.start_session import start_session, begin_session
-from .routes.modules.commands.stop_session  import stop_session, end_session
-from .routes.modules.cdrs.cdrs  import get_receipt, receive_cdr
+from .routes.modules.locations.locations import router as locations_router
+from .routes.modules.sessions.sessions import router as sessions_router
 
+from .routes.modules.commands.start_session import router as start_session_router, api_router as start_session_api_router
+from .routes.modules.commands.stop_session  import router as stop_session_router, api_router as stop_session_api_router
 
+from .routes.modules.cdrs.cdrs import router as cdrs_router, api_router as cdrs_api_router
 
+router.include_router(locations_router)
+router.include_router(sessions_router)
+router.include_router(start_session_router)
+router.include_router(stop_session_router)
+router.include_router(cdrs_router)
+
+api_router.include_router(start_session_api_router)
+api_router.include_router(stop_session_api_router)
+api_router.include_router(cdrs_api_router)

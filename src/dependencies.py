@@ -11,6 +11,7 @@ from .pubsub import OCPIPubSub
 
 pubsub_manager = OCPIPubSub()
 
+
 def get_pubsub() -> OCPIPubSub:
     return pubsub_manager
 
@@ -20,7 +21,7 @@ async def get_session_service(db: AsyncSession = Depends(get_db)) -> SessionServ
 async def get_cdr_service(db: AsyncSession = Depends(get_db)) -> CDRService:
     return CDRService(db)
 
-async def get_location_service(db: AsyncSession = Depends(get_db)) -> LocationService:
+async def get_locations_service(db: AsyncSession = Depends(get_db)) -> LocationService:
     return LocationService(db)
 
 async def get_tariff_service(db: AsyncSession = Depends(get_db)) -> TariffService:

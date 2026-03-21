@@ -1,7 +1,5 @@
 {
-    "python.analysis.extraPaths": [
-        "src"
-    ],
+    "python.analysis.extraPaths": [],
     "python.analysis.autoSearchPaths": true,
     // Pylance - important for F12
     "python.languageServer": "Pylance",

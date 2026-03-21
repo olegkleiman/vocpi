@@ -16,20 +16,38 @@ import os
 import logging
 import secrets
 
-from ....router import router, api_router
+from typing import Optional
+from fastapi import Header, APIRouter
+
 from ....dependencies import get_session_service
 from ....models.pydantic.models import StartSessionPayload, BeginSessionResponse
-from ....models.ocpi.models_ocpi import OCPIResponse
+from ....models.ocpi.models_ocpi import OCPIResponse, OCPIStatusCode, OCPICommandResponse
 from ..tokens.token_payload import TokenPayload
+
+router = APIRouter()
+api_router = APIRouter()
 
 rfid_token_file_path = os.getenv("RFID_FAKE_TOKEN_FILE_PATH")
 CALLBACK_BASE_URL = os.getenv("CALLBACK_BASE_URL")
 logger = logging.getLogger(__name__)
 
+async def auth_required(authorization: Optional[str] = Header(None)):
+    # Missing header
+    if not authorization:
+        raise HTTPException(
+            status_code=401,
+            detail=OCPIResponse(
+                status_code=OCPIStatusCode.INVALID_PARAMETERS,
+                status_message="Missing Authorization header",
+                data=None
+            ).model_dump()
+        )
+
 @api_router.post("/begin_session", tags=["Custom API"],
             description="Begins a new session with the CPO.",
             response_model = BeginSessionResponse)
 async def begin_session(payload: StartSessionPayload,
+                        auth=Depends(auth_required),
                         session_service = Depends(get_session_service)):
     try:
 

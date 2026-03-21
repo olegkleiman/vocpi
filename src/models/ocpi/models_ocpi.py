@@ -166,7 +166,7 @@ class OCPISession(BaseModel):
     id: str
     start_datetime: str
     end_datetime: Optional[str] = None          # None if session still ACTIVE
-    kwh: float                                  # energy delivered so far
+    kwh: Optional[float]                                  # energy delivered so far
     auth_id: str
     auth_method: OCPIAuthMethod
     location: OCPILocation
@@ -175,7 +175,7 @@ class OCPISession(BaseModel):
     charging_periods: Optional[List[OCPIChargingPeriod]] = None
     total_cost: Optional[float] = None          # None if session still ACTIVE
     status: SessionStatus
-    last_updated: str = Field(default_factory=utc_now)
+    last_updated: datetime
 
 class OCPICDR(BaseModel):
     id: str
