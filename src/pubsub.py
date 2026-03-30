@@ -3,7 +3,7 @@ src.pubsub.py
 
 Project: WEV (OCPI+ Server)
 Author: Oleg Kleiman
-Date: Feb., 2026
+Date: Feb. 2026
 
 """
 from collections import defaultdict

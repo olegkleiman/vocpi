@@ -1,7 +1,45 @@
-docs/
-
+# Git
 .git/
+.gitignore
+
+# Python
 __pycache__/
 *.pyc
-.env
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Tests & docs
 tests/
+docs/
+
+# Environment & secrets
+.env
+*.env
+
+# Docker/Compose
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# OTel config
+otel/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

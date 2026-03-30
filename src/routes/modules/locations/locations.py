@@ -6,7 +6,6 @@ import sys
 import httpx
 import json
 from datetime import datetime, timezone
-import hashlib
 
 from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.encoders import jsonable_encoder
@@ -25,8 +24,6 @@ console_handler = logging.StreamHandler(sys.stdout)
 logger.addHandler(console_handler)
 
 router = APIRouter()
-
-current_location = {}
 
 def has_location_changed(new_data: TargetLocation, old_data: TargetLocation | None) -> bool:
     if old_data is None:
@@ -50,15 +47,14 @@ async def location_updates(request: Request,
     if not location_id or not evse_id:
         raise HTTPException(status_code=400, detail="location_id and evse_id are required")
 
-    _current_location_id = f"{location_id}:{evse_id}"
-    current_location_hash = hashlib.sha256(_current_location_id.encode()).hexdigest()
-    queue = await pubsub.subscribe(current_location_hash)
+    topic_id = f"{location_id}:{evse_id}"
+    queue = await pubsub.subscribe(topic_id)
 
     try:
         # Default to 3 seconds if missing/invalid
-        delay = float(os.getenv("LOCATION_REFRESH_DELAY_SEC", "3.0")) 
+        timeout = float(os.getenv("LOCATION_REFRESH_TIMEOUT_SEC", "30.0")) 
     except (ValueError, TypeError):
-        delay = 3.0
+        timeout = 30.0
 
     logger.info(f"\t== Subscription to location updates for {location_id}:{evse_id}")
 
@@ -82,27 +78,23 @@ async def location_updates(request: Request,
                     break
 
                 try:
-                    # location_data = await asyncio.wait_for(queue.get(), timeout=delay)
-                    location_data = await queue.get()
+                    location_data = await asyncio.wait_for(queue.get(), timeout=timeout)
+                    # location_data = await queue.get()
 
-                    # if has_location_changed(location_data, last_data):
                     last_data = location_data
                     yield {
                         "event": "update", # SSE needs an event name
                         "id": f"{location_id}:{evse_id}", # str(uuid.uuid4()), # Unique ID for each event
                         "data" :json.dumps(jsonable_encoder(location_data)),
                     }
-                    # else: 
-                    #     logger.debug(f"{datetime.now()} Pulled location data is the same for '{location_id}:{evse_id}' - skipping publishing to SSE")
                         
-                # except asyncio.TimeoutError:
-                #     location_data = await location_service.get_location_details(tariff_service, location_id, evse_id)
-                #     location_data = last_sessions_kv[current_location_hash]
-                #     yield {
-                #         "event": "erro",
-                #         "id": f"{location_id}:{evse_id}", # str(uuid.uuid4()) -> Unique ID for each event
-                #         "data" : "",
-                #     }
+                except asyncio.TimeoutError:
+                    location_data = await location_service.get_location_details(tariff_service, location_id, evse_id)
+                    yield {
+                        "event": "update",
+                        "id": f"{location_id}:{evse_id}", # str(uuid.uuid4()) -> Unique ID for each event
+                        "data" :json.dumps(jsonable_encoder(location_data)),
+                    }
 
                 except Exception as e:
                     logger.error(f"Error in SSE locations loop for {location_id}:{evse_id}: {e}")
@@ -110,8 +102,6 @@ async def location_updates(request: Request,
                         "event": "error",
                         "data": json.dumps({"error": str(e)})
                     }
-
-                # await asyncio.sleep(delay)
   
     return EventSourceResponse(event_generator())
 
@@ -127,11 +117,6 @@ async def push_location_update(
 ):
     topic_id = f"{location_id}:{evse_id}"
     logger.info(f"Publishing location update for topic: {topic_id}")
-    
-    # You can add logic here to check if the location data has actually changed
-    # before publishing, using your `has_location_changed` function.
-    # This would prevent sending unnecessary SSE events if the data is identical.
-    # For now, we'll publish every time this endpoint is called.
 
     await pubsub.publish(topic_id, location_data)
 

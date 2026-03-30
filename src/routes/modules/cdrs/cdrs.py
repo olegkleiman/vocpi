@@ -14,8 +14,6 @@ from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy import select
 from typing import Optional
 
-logger = logging.getLogger(__name__)
-
 from sqlalchemy.ext.asyncio import AsyncSession
 from ....database import get_db
 from ....models.pydantic.models import CDRResponse
@@ -43,9 +41,10 @@ async def get_receipt(request: Request,
     http_version = request.scope.get("http_version")
     logging.debug(http_version)
 
+    timeout = 10
     keep_alive = request.headers.get("keep-alive")
     if keep_alive:
-        # "timeout=5, max=1000" → 5
+        # "timeout=10, max=1000" → 5
         for part in keep_alive.split(","):
             key, _, value = part.strip().partition("=")
             if key.strip() == "timeout":

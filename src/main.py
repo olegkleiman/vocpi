@@ -1,3 +1,12 @@
+"""
+src.main.py
+
+Project: WEV (OCPI+ Server)
+Author: Oleg Kleiman
+Date: March 2026
+
+"""
+
 from enum import Enum
 import logging
 import os
@@ -17,6 +26,24 @@ logger.addHandler(console_handler)
 
 import uvicorn
 from dotenv import load_dotenv
+
+# --- OpenTelemetry setup ---
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+OTEL_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://otel-sidecar:4317")
+SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME", "vocpi")
+
+provider = TracerProvider()
+exporter = OTLPSpanExporter(endpoint=OTEL_ENDPOINT, insecure=True)
+provider.add_span_processor(BatchSpanProcessor(exporter))
+trace.set_tracer_provider(provider)
+
+tracer = trace.get_tracer(SERVICE_NAME)
+# --- End OTel setup ---
 
 # from routes.modules import sessions, locations, commands, tokens
 

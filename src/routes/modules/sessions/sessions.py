@@ -149,15 +149,14 @@ async def update_session(
             await pubsub.publish(request_id, session_update)
 
             location = session.location
-            _current_location_id = f"{location_id}:{evse_id}"
-            current_location_hash = hashlib.sha256(_current_location_id.encode()).hexdigest()
+            topic_id = f"{location_id}:{evse_id}"
 
             location_model: TargetLocation = await location_service.location_data_to_model(location, 
                                                                                            session, 
                                                                                            tariff_service)
             location_model.timestamp = session.last_updated
 
-            await pubsub.publish(current_location_hash, location_model)     
+            await pubsub.publish(topic_id, location_model)     
 
     except Exception as e:
         logging.error(f"Error in update_session: {e}")
