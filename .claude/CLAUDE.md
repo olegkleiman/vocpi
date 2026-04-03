@@ -10,7 +10,7 @@ VOCPI is a FastAPI-based eMSP (e-Mobility Service Provider) server implementing 
 
 ### Run the server
 ```bash
-uvicorn src.main:app --host 0.0.0.0 --port 8080 --reload
+uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ### Run tests

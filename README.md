@@ -12,7 +12,7 @@ FastAPI-based implementation of OCPI 2.2.1 (Open Charge Point Interface) for ele
 
 ## Requirements
 
-- Python 3.13+
+- Python 3.11+
 - PostgreSQL
 
 ## Installation
@@ -46,7 +46,7 @@ psql -h your-host -U your-user -d postgres -f src/sql/sessions.sql
 ## Running
 
 ```bash
-uvicorn src.main:app --host 0.0.0.0 --port 8080 --reload
+uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ## API Endpoints
@@ -71,6 +71,18 @@ vocpi/
 └── requirements.txt
 ```
 
+## How to deploy (to EC2)
+1. Theoretically, it could be accompilshed with SSH client (with .pem), but use MobaXTerm for more comfortable experience
+2. Install git at the targer EC2
+3. Clone the repository (at the root) 
+3.1. cd vocpi\
+4. docker build -t vocpi-image .
+5. docker run -d --name vocpi-container -p 8000:8000 --env-file .env vocpi-image
+6. Test it: curl http://3.120.176.1:8000/docs
+
+
 ## License
 
 MIT
+
+

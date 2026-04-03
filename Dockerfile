@@ -1,12 +1,12 @@
 # Stage 1: Documentation Builder
-FROM python:3.13-slim AS docs_builder
+FROM python:3.11-slim AS docs_builder
 WORKDIR /docs_gen
 COPY docs/ .
 # Run your doc generator (e.g., Sphinx or MkDocs)
 RUN pip install mkdocs && mkdocs build
 
 # Stage 2: Final Production Image
-FROM python:3.13-slim 
+FROM python:3.11-slim 
 
 # Create a non-privileged user for security
 RUN useradd -m vocpiuser

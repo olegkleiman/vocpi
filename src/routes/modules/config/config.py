@@ -10,11 +10,14 @@ import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from fastapi import Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
-from ....router import router
+# from ....router import router
+
 from ....models.sqlalchemy.models import DbTerminalConfigurationModel, OCPILocation, EVSEModel
 from ....database import get_db
+
+router = APIRouter()
 
 logger = logging.getLogger(__name__)
 

@@ -18,20 +18,24 @@ exporters:
     endpoint: "host.containers.internal:14317"
     tls:
       insecure: true
+  otlphttp:
+    endpoint: "http://otlp.nr-data.net:4318"
+    headers:
+      api-key: "eu01xxca66c702ebc68a9dd3dda222eaFFFFNRAL"
 
 service:
   pipelines:
     metrics:
       receivers: [otlp]
       processors: [batch]
-      exporters: [prometheus, debug]
+      exporters: [otlphttp, prometheus, debug]
 
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [debug]
+      exporters: [otlphttp, debug]
 
     logs:
       receivers: [otlp]
       processors: []
-      exporters: [debug]
+      exporters: [otlphttp, debug]

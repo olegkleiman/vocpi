@@ -12,11 +12,13 @@ import logging
 import os
 import sys
 from fastapi import FastAPI, Request
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from sqlalchemy.exc import OperationalError
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.responses import JSONResponse
 
 from .router import router, api_router
+from .telemetry import setup_telemetry
 
 logger = logging.getLogger(__name__)
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -25,30 +27,15 @@ console_handler = logging.StreamHandler(sys.stdout)
 logger.addHandler(console_handler)
 
 import uvicorn
-from dotenv import load_dotenv
 
 # --- OpenTelemetry setup ---
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
-OTEL_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://otel-sidecar:4317")
-SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME", "vocpi")
-
-provider = TracerProvider()
-exporter = OTLPSpanExporter(endpoint=OTEL_ENDPOINT, insecure=True)
-provider.add_span_processor(BatchSpanProcessor(exporter))
-trace.set_tracer_provider(provider)
-
-tracer = trace.get_tracer(SERVICE_NAME)
-# --- End OTel setup ---
-
-# from routes.modules import sessions, locations, commands, tokens
-
-# Load environment variables from .env file for local development
-load_dotenv()
+# OTEL_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://otel-sidecar:4317")
 
 class VersionNumber(str, Enum):
     """
@@ -103,11 +90,19 @@ class DatabaseTimeoutMiddleware(BaseHTTPMiddleware):
                 )
             raise exc
 
+SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME", "vocpi")
+OTEL_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
+setup_telemetry(service_name=SERVICE_NAME, 
+                endpoint=OTEL_ENDPOINT)
+
+tracer = trace.get_tracer(__name__,SERVICE_NAME)
+
 app = FastAPI(
     title=OCPI_PREFIX,
     version="1.0.0",
     description="Implementation of OCPI (Open Charge Point Interface) for electric vehicle charging stations in Israel.",
 )
+FastAPIInstrumentor.instrument_app(app)
 app.add_middleware(DatabaseTimeoutMiddleware)
 
 @app.exception_handler(Exception) #OperationalError)
