@@ -15,7 +15,8 @@ exporters:
   prometheus:
     endpoint: "0.0.0.0:9464"
   otlp/jaeger:
-    endpoint: "host.containers.internal:14317"
+    # endpoint: "host.containers.internal:14317"
+    endpoint: "jaeger:4317" # Use the container name + the internal OTLP port
     tls:
       insecure: true
   otlphttp:
@@ -33,7 +34,7 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [otlphttp, debug]
+      exporters: [otlp/jaeger, otlphttp, debug]
 
     logs:
       receivers: [otlp]

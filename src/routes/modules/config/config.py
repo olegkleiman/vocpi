@@ -17,11 +17,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from ....models.sqlalchemy.models import DbTerminalConfigurationModel, OCPILocation, EVSEModel
 from ....database import get_db
 
-router = APIRouter()
+api_router = APIRouter()
 
 logger = logging.getLogger(__name__)
 
-@router.get("/terminal/{sn}", tags=["Custom API", "Configuration"])
+@api_router.get("/terminal/{sn}", tags=["Custom API", "Configuration"])
 async def app_config(sn: str,
                      db: AsyncSession = Depends(get_db) ):
     logger.info(f"Config endpoint called for serial number: {sn}")

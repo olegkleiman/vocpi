@@ -12,8 +12,8 @@ from fastapi import APIRouter
 router = APIRouter()
 api_router = APIRouter()
 
-from .routes.modules.config.config import router as config_router
-router.include_router(config_router)
+from .routes.modules.config.config import api_router as config_router
+api_router.include_router(config_router)
 
 from .routes.modules.locations.locations import router as locations_router
 router.include_router(locations_router)

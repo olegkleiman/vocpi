@@ -35,6 +35,9 @@ export DEFAULT_PARTNER_ID=your_partner_id
 
 ## Database Setup
 
+DB access my be configured to use Supabase: https://supabase.com/dashboard/project/ihlyyhcigfxxqxdjchkj
+or any other PG on cloud or local container
+
 Run SQL migrations in `src/sql/`:
 
 ```bash
@@ -72,13 +75,30 @@ vocpi/
 ```
 
 ## How to deploy (to EC2)
-1. Theoretically, it could be accompilshed with SSH client (with .pem), but use MobaXTerm for more comfortable experience
+
+### Provisioning
+- Create EC2 instance with key pair and save .pem locally.
+- Include public IP to the settings of this instance.
+
+Theoretically, all deployment steps bellow could be accompilshed with SSH client (with .pem), but use MobaXTerm for more comfortable experience.
+
 2. Install git at the targer EC2
-3. Clone the repository (at the root) 
-3.1. cd vocpi\
-4. docker build -t vocpi-image .
-5. docker run -d --name vocpi-container -p 8000:8000 --env-file .env vocpi-image
-6. Test it: curl http://3.120.176.1:8000/docs
+2. Clone the repository (at the root) 
+2.1. cd vocpi\
+
+3. Docker
+Optional (OpenTelemetry with Jaegger)
+(Optional, from ~/vocpi) 4.1  docker run -d --name otel-collector --network vocpi-net -p 4317:4317 -p 4318:4318 -v $(pwd)/otel/otel-collector.yaml:/etc/otelcol-contrib/config.yaml otel/opentelemetry-collector-contrib:latest
+(Optional) 4.2. docker network create vocpi-net
+(Optional) 4.3. docker run -d --name jaeger --network vocpi-net -p 16686:16686 jaegertracing/all-in-one:latest
+
+4.3. docker build -t vocpi-image .
+4.4. docker run -d --name vocpi-container -p 8000:8000 -e OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317 --env-file .env vocpi-image
+4.5. docker network connect vocpi-net vocpi-container || true
+4.6. Test it: curl http://3.120.176.1:8000/docs
+
+5. With nginx
+5.1. Install nginx at the targer EC2
 
 
 ## License
