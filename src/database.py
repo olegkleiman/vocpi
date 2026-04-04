@@ -12,14 +12,28 @@ from .models.sqlalchemy.models import OCPILocation, EVSEModel, OCPIPartnerModel
 from .exceptions import PartnerNotFoundError
 
 raw_password = os.getenv("PG_PASSWORD")
-pg_username = os.getenv("PG_USERNAME", "postgres")
-pg_host = os.getenv("PG_HOST")
-pg_port = os.getenv("PG_PORT")
-pg_db = os.getenv("PG_DB")
-pg_useSSL= os.getenv("PG_USE_SSL")
+if not raw_password:
+    raise ValueError("DB password is missing!")
 
-if not raw_password or not pg_username or not pg_host or not pg_port or not pg_db:
-    raise ValueError("One or more DB credentials are missing!")
+pg_username = os.getenv("PG_USERNAME", "postgres")
+if not pg_username:
+    raise ValueError("DB username is missing!")
+
+pg_host = os.getenv("PG_HOST")
+if not pg_host:
+    raise ValueError("DB host is missing!")
+
+pg_port = os.getenv("PG_PORT")
+if not pg_port:
+    raise ValueError("DB port is missing!")
+
+pg_db = os.getenv("PG_DB")
+if not pg_db:
+    raise ValueError("DB name is missing!")
+
+pg_useSSL= os.getenv("PG_USE_SSL")
+if not pg_useSSL:
+    raise ValueError("DB SSL setting is missing!")
 
 safe_password = urllib.parse.quote_plus(raw_password)
 pg_password = safe_password
