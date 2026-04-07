@@ -47,7 +47,7 @@ engine = create_async_engine(
     pool_pre_ping=True, 
     pool_recycle=300,   # Close connections after 5 mins
     connect_args={
-        "connect_timeout": 2,
+        "connect_timeout": 10,
         "gssencmode": "disable",  # Skips GSSAPI negotiation lag
         "application_name": "vocpi_app",
         "keepalives": 1,
