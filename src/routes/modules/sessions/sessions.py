@@ -41,8 +41,9 @@ console_handler = logging.StreamHandler(sys.stdout)
 logger.addHandler(console_handler)
 
 router = APIRouter(prefix="/sessions", tags=["Sessions"])
+api_router = APIRouter(prefix="/sessions", tags=["Sessions"])
 
-@router.get("/updates/{session_request_id}", tags=["Sessions"],
+@api_router.get("/updates/{session_request_id}", tags=["Sessions"],
             description="SSE endpoint for real-time session updates.")
 async def session_updates(request: Request, 
                           session_request_id: str, 
@@ -167,7 +168,7 @@ async def update_session(
         timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     )
     
-
+# This endpoint is called by CPO by well-known URL defined in OCPI protocol
 @router.get("/{session_request_id}", tags=["Sessions"],
             description="Returns the details of the session.")
 async def get_session(

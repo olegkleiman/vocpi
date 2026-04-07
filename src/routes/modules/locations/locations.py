@@ -24,6 +24,7 @@ console_handler = logging.StreamHandler(sys.stdout)
 logger.addHandler(console_handler)
 
 router = APIRouter()
+api_router = APIRouter()
 
 def has_location_changed(new_data: TargetLocation, old_data: TargetLocation | None) -> bool:
     if old_data is None:
@@ -34,8 +35,7 @@ def has_location_changed(new_data: TargetLocation, old_data: TargetLocation | No
     
     return False
 
-
-@router.get("/locations/updates/{location_id}/{evse_id}", tags=["Locations"],
+@api_router.get("/locations/updates/{location_id}/{evse_id}", tags=["Locations"],
             description="SSE endpoint for real-time location/evse updates")
 async def location_updates(request: Request, 
                            location_id: str,

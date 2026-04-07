@@ -99,7 +99,81 @@ Optional (OpenTelemetry with Jaegger)
 
 5. With nginx
 5.1. Install nginx at the targer EC2
+5.2. Configure Nginx
+server {
+    listen 80;
+    server_name _;
+    
+    # 1. Jaeger (OTLP)
+    location /jaeger/ {
+        proxy_pass http://172.17.0.1:16686/jaeger/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_redirect off;
+    }
+    
+    # 2.0 OCPI API (SSE + REST)
+    location /ocpi/api/ {
+        proxy_pass http://172.17.0.1:8000/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_http_version 1.1;
+    
+        # SSE support
+        proxy_set_header Connection '';
+        proxy_buffering off;
+        proxy_cache off;
+        chunked_transfer_encoding on;
+    }  
+    
+    # 2.1 OCPI Swagger
+    location /ocpi/2.2.1/docs {
+        proxy_pass http://172.17.0.1:8000/docs;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_http_version 1.1;
+    }
+    
+    location /openapi.json {
+        proxy_pass http://172.17.0.1:8000/openapi.json;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_http_version 1.1;
+    }
+    
+    # 3. SPAs
+    location /esay/ {
+        alias /usr/share/nginx/html/esay/;
+        index index.html;
+        try_files $uri $uri/ /esay/index.html;
+    } 
 
+    location /site1/ {
+        alias /usr/share/nginx/html/site1/;
+        index index.html;
+        try_files $uri $uri/ /site1/index.html;
+    }
+
+    location /site2/ {
+        alias /usr/share/nginx/html/site2/;
+        index index.html;
+        try_files $uri $uri/ /site2/index.html;
+    }
+    
+    # 4. Root (To stop the Welcome Page)
+    location / {
+        root /usr/share/nginx/html;
+        index index.html;
+    }
+
+}
 
 ## License
 
