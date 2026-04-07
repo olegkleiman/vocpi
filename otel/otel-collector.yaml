@@ -16,7 +16,7 @@ exporters:
     endpoint: "0.0.0.0:9464"
   otlp/jaeger:
     # endpoint: "host.containers.internal:14317"
-    endpoint: "jaeger:4317" # Use the container name + the internal OTLP port
+    endpoint: 10.88.0.1:4317 # Use the container name + the internal OTLP port when running in Docker
     tls:
       insecure: true
   otlphttp:

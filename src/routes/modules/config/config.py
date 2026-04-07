@@ -1,6 +1,6 @@
 
 """
-routes.config.config.py
+src.routes.modules.config.config.py
 
 Author: Oleg Kleiman
 Date: Feb, 2026
@@ -8,12 +8,13 @@ Last edited: April, 2026
 
 """
 import logging
+from opentelemetry.instrumentation.logging import LoggingInstrumentor
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi import APIRouter, Depends, HTTPException
 
-# from ....router import router
+from opentelemetry import trace
 
 from ....models.sqlalchemy.models import DbTerminalConfigurationModel, OCPILocation, EVSEModel
 from ....database import get_db
@@ -21,11 +22,16 @@ from ....database import get_db
 api_router = APIRouter()
 
 logger = logging.getLogger(__name__)
+# Attach OTel to Python logging
+LoggingInstrumentor().instrument(set_logging_format=True)
+tracer = trace.get_tracer(__name__)
 
 @api_router.get("/terminal/{sn}", tags=["Custom API", "Configuration"])
 async def app_config(sn: str,
                      db: AsyncSession = Depends(get_db) ):
-    logger.info(f"Config endpoint called for serial number: {sn}")
+    
+    with tracer.start_as_current_span("get-terminal-operation"):
+        logger.info(f"Config endpoint called for serial number: {sn}")
 
     try:
         stmt = (

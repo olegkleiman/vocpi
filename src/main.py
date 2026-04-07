@@ -7,6 +7,9 @@ Date: March 2026
 
 """
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from enum import Enum
 import logging
 import os
@@ -21,21 +24,23 @@ from .router import router, api_router
 from .telemetry import setup_telemetry
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 logger.setLevel(LOG_LEVEL)
 console_handler = logging.StreamHandler(sys.stdout)
 logger.addHandler(console_handler)
 
-import uvicorn
-
 # --- OpenTelemetry setup ---
 from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+# from opentelemetry.sdk.trace import TracerProvider
+# from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+# from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
-# OTEL_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://otel-sidecar:4317")
+from fastapi.middleware.cors import CORSMiddleware
+
+print(">>> OTEL_ENDPOINT:", os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
+print(">>> OTEL_SERVICE:", os.getenv("OTEL_SERVICE_NAME"))
 
 class VersionNumber(str, Enum):
     """
@@ -92,17 +97,35 @@ class DatabaseTimeoutMiddleware(BaseHTTPMiddleware):
 
 SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME", "vocpi")
 OTEL_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
+
 setup_telemetry(service_name=SERVICE_NAME, 
                 endpoint=OTEL_ENDPOINT)
 
 tracer = trace.get_tracer(__name__,SERVICE_NAME)
+
+import urllib3
+urllib3.disable_warnings()
+logging.getLogger("urllib3").setLevel(logging.DEBUG)
 
 app = FastAPI(
     title=OCPI_PREFIX,
     version="1.0.0",
     description="Implementation of OCPI (Open Charge Point Interface) for electric vehicle charging stations in Israel.",
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 FastAPIInstrumentor.instrument_app(app)
+tracer = trace.get_tracer(__name__)
+with tracer.start_as_current_span("startup-test-span"):
+    print(">>> startup test span created")
+
 app.add_middleware(DatabaseTimeoutMiddleware)
 
 @app.exception_handler(Exception) #OperationalError)
