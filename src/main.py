@@ -15,13 +15,13 @@ import logging
 import os
 import sys
 from fastapi import FastAPI, Request
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+# from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from sqlalchemy.exc import OperationalError
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.responses import JSONResponse
 
 from .router import router, api_router
-from .telemetry import setup_telemetry
+# from .telemetry import setup_telemetry
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -31,11 +31,11 @@ console_handler = logging.StreamHandler(sys.stdout)
 logger.addHandler(console_handler)
 
 # --- OpenTelemetry setup ---
-from opentelemetry import trace
+# from opentelemetry import trace
 # from opentelemetry.sdk.trace import TracerProvider
 # from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 # from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+# from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -95,17 +95,17 @@ class DatabaseTimeoutMiddleware(BaseHTTPMiddleware):
                 )
             raise exc
 
-SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME", "vocpi")
-OTEL_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
+# SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME", "vocpi")
+# OTEL_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
 
-setup_telemetry(service_name=SERVICE_NAME, 
-                endpoint=OTEL_ENDPOINT)
+# setup_telemetry(service_name=SERVICE_NAME, 
+#                 endpoint=OTEL_ENDPOINT)
 
-tracer = trace.get_tracer(__name__,SERVICE_NAME)
+# tracer = trace.get_tracer(__name__,SERVICE_NAME)
 
-import urllib3
-urllib3.disable_warnings()
-logging.getLogger("urllib3").setLevel(logging.DEBUG)
+# import urllib3
+# urllib3.disable_warnings()
+# logging.getLogger("urllib3").setLevel(logging.DEBUG)
 
 app = FastAPI(
     title=OCPI_PREFIX,
@@ -121,10 +121,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-FastAPIInstrumentor.instrument_app(app)
-tracer = trace.get_tracer(__name__)
-with tracer.start_as_current_span("startup-test-span"):
-    print(">>> startup test span created")
+# FastAPIInstrumentor.instrument_app(app)
+# tracer = trace.get_tracer(__name__)
+# with tracer.start_as_current_span("startup-test-span"):
+#     print(">>> startup test span created")
 
 app.add_middleware(DatabaseTimeoutMiddleware)
 

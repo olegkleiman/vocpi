@@ -91,18 +91,20 @@ Optional (OpenTelemetry with Jaegger)
 (Optional, from ~/vocpi) 4.1  docker run -d --name otel-collector --network vocpi-net -p 4317:4317 -p 4318:4318 -v $(pwd)/otel/otel-collector.yaml:/etc/otelcol-contrib/config.yaml otel/opentelemetry-collector-contrib:latest
 (Optional) 4.2. docker network create vocpi-net
 (Optional) 4.3. docker run -d --name jaeger --network vocpi-net -p 16686:16686 jaegertracing/all-in-one:latest
+4.4 (If prevous instance of container is runnung) docker stop vocpi-container && docker rm vocpi-container
 
-4.3. docker build -t vocpi-image .
-4.4. docker run -d --name vocpi-container -p 8000:8000 -e OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317 --env-file .env vocpi-image
-4.5. docker network connect vocpi-net vocpi-container || true
-4.6. Test it: curl http://3.120.176.1:8000/docs
+4.5. docker build -t vocpi-image .
+4.6. docker run -d --name vocpi-container -p 8000:8000 --env-file .env vocpi-image
+4.7. docker network connect vocpi-net vocpi-container || true
+4.8. Test it: curl http://3.120.176.1:8000/docs
 
 5. With nginx
 5.1. Install nginx at the targer EC2
-5.2. Configure Nginx
+5.2. Configure Nginx (file: nginx-master.conf)
 server {
     listen 80;
     server_name _;
+    
     
     # 1. Jaeger (OTLP)
     location /jaeger/ {
@@ -115,21 +117,37 @@ server {
         proxy_set_header Connection "upgrade";
         proxy_redirect off;
     }
+
     
-    # 2.0 OCPI API (SSE + REST)
-    location /ocpi/api/ {
-        proxy_pass http://172.17.0.1:8000/api/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_http_version 1.1;
-    
-        # SSE support
-        proxy_set_header Connection '';
-        proxy_buffering off;
-        proxy_cache off;
-        chunked_transfer_encoding on;
-    }  
+	# 2.0 OCPI API (SSE + REST)
+	location /ocpi/api/ {
+	    proxy_pass http://172.17.0.1:8000/api/;
+	    proxy_set_header Host $host;
+	    proxy_set_header X-Real-IP $remote_addr;
+	    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+	    proxy_http_version 1.1;
+	    proxy_method $request_method;
+
+	    # SSE support
+	    proxy_set_header Connection '';
+	    proxy_buffering off;
+	    proxy_cache off;
+	    chunked_transfer_encoding on;
+	}
+
+
+
+	location /ocpi/ {
+    		proxy_pass http://172.17.0.1:8000/ocpi/;
+    		proxy_set_header Host $host;
+    		proxy_set_header X-Real-IP $remote_addr;
+    		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    		proxy_http_version 1.1;
+    		proxy_method $request_method;
+
+		proxy_connect_timeout 10s;
+	}
+
     
     # 2.1 OCPI Swagger
     location /ocpi/2.2.1/docs {
@@ -174,6 +192,11 @@ server {
     }
 
 }
+
+5.3 Start nginx in container
+5.3.1 docker stop nginx-server && docker rm nginx-server
+5.3.2 docker run -d --name nginx-server -p 80:80 -v ~/nginx-master.conf:/etc/nginx/conf.d/default.conf:ro -v ~/esay:/usr/share/nginx/html/esay -v ~/website1/public:/usr/share/nginx/html/site1:ro -v ~/website2/public:/usr/share/nginx/html/site2:ro nginx
+5.3.3. (Optional) docker exec nginx-server nginx -s reload
 
 ## License
 

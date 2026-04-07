@@ -1,3 +1,12 @@
+"""
+src.telemetry.py
+
+Project: WEV (OCPI+ Server)
+Author: Oleg Kleiman
+Date: April 2026
+
+"""
+
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
