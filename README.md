@@ -22,6 +22,11 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
+```ps
+py -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+```
 
 ## Configuration
 
@@ -91,8 +96,8 @@ Optional (OpenTelemetry with Jaegger)
 (Optional, from ~/vocpi) 4.1  docker run -d --name otel-collector --network vocpi-net -p 4317:4317 -p 4318:4318 -v $(pwd)/otel/otel-collector.yaml:/etc/otelcol-contrib/config.yaml otel/opentelemetry-collector-contrib:latest
 (Optional) 4.2. docker network create vocpi-net
 (Optional) 4.3. docker run -d --name jaeger --network vocpi-net -p 16686:16686 jaegertracing/all-in-one:latest
-4.4 (If prevous instance of container is runnung) docker stop vocpi-container && docker rm vocpi-container
 
+4.4 (If prevous instance of container is runnung) docker stop vocpi-container && docker rm vocpi-container
 4.5. docker build -t vocpi-image .
 4.6. docker run -d --name vocpi-container -p 8000:8000 --env-file .env vocpi-image
 4.7. docker network connect vocpi-net vocpi-container || true

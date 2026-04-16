@@ -1,4 +1,5 @@
 .venv
+venv/
 src/__pychache__/
 *.pyc
 .DS_Store

@@ -115,6 +115,7 @@ class DbSessionModel(Base):
     evse_uid: Mapped[str] = mapped_column(sa.String)
     connector_id: Mapped[str] = mapped_column(sa.String)
     currency: Mapped[str] = mapped_column(sa.String(3))
+    start_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     # start_date_time: Mapped[datetime] = sa.Column(DateTime(timezone=True), nullable=False)
     # end_date_time: Mapped[Optional[datetime]] = sa.Column(DateTime(timezone=True), nullable=True)
     last_updated: Mapped[datetime] = mapped_column(

@@ -60,6 +60,9 @@ async def location_updates(request: Request,
 
     async def event_generator():
 
+        # Flush headers immediately so client onopen fires without waiting for first message
+        yield {"event": "ping", "data": ""}
+
         # Force to get location for initialization step 
         _location_data = await location_service.get_location_details(tariff_service, location_id, evse_id)
         yield {

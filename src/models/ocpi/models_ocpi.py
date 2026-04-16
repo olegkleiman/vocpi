@@ -97,6 +97,7 @@ class SessionDetailsResponse(BaseModel):
     delivered_kwh: float = 0.0
     total_cost: str
     duration: str
+    start_datetime: datetime
 
 class OCPIResponse(BaseModel):
     data: Optional[Any] = None

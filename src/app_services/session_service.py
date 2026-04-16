@@ -102,13 +102,21 @@ class SessionService:
             self,
             request_id: str
     ) -> str | None:
-        smt = (
+        stmt = (
             select(DbSessionRequestModel.session_id)
             .where(DbSessionRequestModel.request_id == request_id)
         )
-        result = await self.db.execute(smt)
+        result = await self.db.execute(stmt)
         session_id = result.scalar()
         return session_id  
+
+    async def get_session_id_by_request_id(self, request_id: str) -> str | None:
+         stmt = (
+              select(DbSessionRequestModel.session_id)
+              .where(DbSessionRequestModel.request_id == request_id)
+         )
+         result = await self.db.execute(stmt)
+         return result.scalar()
 
     async def get_session_id_by_location(self, location_id, evse_id, connector_id) -> str| None:
          smt = (

@@ -43,6 +43,7 @@ logger.addHandler(console_handler)
 router = APIRouter(prefix="/sessions", tags=["Sessions"])
 api_router = APIRouter(prefix="/sessions", tags=["Sessions"])
 
+# SSE endpoint for real-time session updates
 @api_router.get("/updates/{session_request_id}", tags=["Sessions"],
             description="SSE endpoint for real-time session updates.")
 async def session_updates(request: Request, 
@@ -52,6 +53,9 @@ async def session_updates(request: Request,
     queue = await pubsub.subscribe(session_request_id)
 
     async def event_generator():
+
+        # Flush headers immediately so client onopen fires without waiting for first message
+        yield {"comment": f"ping - {datetime.now(timezone.utc).isoformat()}"}
 
         while True:
 
@@ -65,7 +69,7 @@ async def session_updates(request: Request,
                 # Every client is waiting on the SAME queue
                 session_data = await queue.get()
                 yield {
-                    "event": "update", # SSE usually needs an event name
+                    "event": "success", # SSE usually needs an event name
                     "id": str(uuid.uuid4()), # Unique ID for each event
                     "data" :json.dumps(jsonable_encoder(session_data)),
                 }
@@ -177,9 +181,9 @@ async def get_session(
     db: AsyncSession = Depends(get_db)) -> SessionDetailsResponse:
 
     try:
-        session_id = await session_service.get_session_id(session_request_id)
+        session_id = await session_service.get_session_id_by_request_id(session_request_id)
         if session_id is None:
-            raise HTTPException(status_code=404, detail=f"Session Request id '{session_request_id}' not found")
+            raise HTTPException(status_code=404, detail=f"Session Not Found Request id '{session_request_id}'")
 
         # SELECT * FROM public.ocpi_sessions s
         # JOIN ocpi_sessions_updates u
@@ -189,7 +193,7 @@ async def get_session(
         # LIMIT 1
 
         stmt = (
-            select(DbSessionsUpdatesModel)
+            select(DbSessionsUpdatesModel, DbSessionModel.last_updated)
             .select_from(DbSessionModel)
             .join(DbSessionsUpdatesModel, DbSessionModel.session_id == DbSessionsUpdatesModel.session_id)
             .where(DbSessionModel.session_id == session_id)
@@ -197,10 +201,12 @@ async def get_session(
             .limit(1)
         )
         result = await db.execute(stmt)
-        session = result.scalar_one_or_none()
-    
-        if not session:
+        row = result.one_or_none()
+
+        if not row:
             raise HTTPException(status_code=404, detail=f"Session Request id '{session_request_id}' not found")
+
+        session, created_at = row  # created_at maps to DbSessionModel.last_updated (DB column "created_at")
 
         diff = datetime.now(timezone.utc) - session.updated_at
         total_seconds = int(diff.total_seconds())
@@ -208,11 +214,14 @@ async def get_session(
         minutes = (total_seconds % 3600) // 60
 
         return SessionDetailsResponse(
-            id=session.session_id, 
+            id=session.session_id,
             status = SessionStatus(session.status),
             delivered_kwh = session.kwh,
-            total_cost = f"{session.total_cost}", 
-            duration = f"{hours:02}:{minutes:02}"
+            total_cost = f"{session.total_cost}",
+            duration = f"{hours:02}:{minutes:02}",
+            start_datetime=created_at
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
